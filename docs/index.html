@@ -65,6 +65,7 @@
     .mode-live { background:rgba(16,185,129,0.2); color:#34d399; }
     .mode-static { background:rgba(56,189,248,0.2); color:#38bdf8; }
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
 </head>
 <body>
 
@@ -237,6 +238,28 @@ async function sha256Hex(message) {
 }
 
 function renderDeterministicQR(seedText) {
+  // Live backend only: render a real, scannable ISO/IEC 18004 QR code for
+  // the real BOLT11 invoice (uppercase Bech32, QR alphanumeric mode).
+  // Static fallback keeps the deterministic pseudo-matrix below, so a
+  // fabricated demo invoice is never presented as a scannable payment QR.
+  if (backendMode && typeof qrcode === 'function') {
+    try {
+      const qr = qrcode(0, 'L');
+      qr.addData(seedText.toUpperCase());
+      qr.make();
+      document.getElementById('qr-container').innerHTML = qr.createSvgTag({
+        cellSize: 3,
+        margin: 0,
+        scalable: true
+      });
+      const svg = document.querySelector('#qr-container svg');
+      if (svg) {
+        svg.setAttribute('width', '147');
+        svg.setAttribute('height', '147');
+      }
+      return;
+    } catch (_) { /* fall through to deterministic SVG */ }
+  }
   const size = 21;
   let cells = '';
   let hash = 2166136261;

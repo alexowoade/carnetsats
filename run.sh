@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 echo "================================================================"
-echo "⚡ CarnetSats v2.0 — Dakar Bitcoin Hack by BTrust"
+echo "⚡ CarnetSats v3.3 — Dakar Bitcoin Hack by BTrust"
 echo "================================================================"
 if [ ! -d ".venv" ]; then
   python3 -m venv .venv

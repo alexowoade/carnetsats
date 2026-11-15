@@ -16,7 +16,7 @@ from carnetsats_engine import (
 
 app = FastAPI(
     title="CarnetSats API — Dakar Bitcoin Hack by BTrust",
-    version="2.0.0",
+    version="3.3.0",
     description="Voice/Receipt POS + Least-Privilege NWC + Real NIP-44 Nostr Credit Ledger + Real BIP-84 Cold Vault",
 )
 

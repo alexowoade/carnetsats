@@ -35,6 +35,11 @@ merchant key are all derived from fixed public demo strings. Swap them
 for real keys in production. The vpub is watch-only, no funds can be
 spent from it.
 
+## Live Hosted MVP (Render — Full FastAPI Backend)
+
+- **Live App (`MODE: LIVE FASTAPI`):** https://carnetsats.onrender.com
+- Python 3.12 (`PYTHON_VERSION=3.12.0` on Render; coincurve does not build on Python 3.13). Free tier sleeps after 15 minutes of inactivity, so the first visit can take about a minute to wake up.
+
 ## Quickstart
 
 ```bash
@@ -72,6 +77,8 @@ the displayed balance. Production wires a BDK PSBT builder.
 is labelled `[STATIC]`, the QR is a deterministic pseudo-matrix (not a
 real QR code) captioned `[STATIC DEMO QR - run ./run.sh for real
 BOLT11]`, and the BOLT11 / NIP-44 data shown is a static demo envelope.
+With the live backend (`MODE: LIVE FASTAPI`, local or Render) the QR is a
+real scannable ISO/IEC 18004 QR code for the real BOLT11 invoice.
 Run `./run.sh` for the real backend.
 
 ## Files
