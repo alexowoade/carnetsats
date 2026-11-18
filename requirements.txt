@@ -10,3 +10,5 @@ bolt11>=2.1.0,<2.3
 bitstring>=4.0,<5
 bech32>=1.2.0
 cryptography>=42.0.0
+hypothesis>=6.170.15,<7
+websocket-client>=1.8.0

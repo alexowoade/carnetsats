@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>CarnetSats — Caisse & Carnet de Dettes Bitcoin/Nostr (Dakar)</title>
+  <title>CarnetSats — Boutique POS on Lightning & Nostr (Dakar)</title>
   <style>
     :root { --bg:#0b0f17; --card:#131b2e; --card-border:#23314f; --accent:#f7931a;
       --accent-green:#10b981; --accent-red:#ef4444; --accent-blue:#38bdf8;
@@ -72,39 +72,40 @@
 <header>
   <div class="brand">
     <span class="logo-badge">⚡ CarnetSats</span>
+    <span class="mode-badge mode-live" id="version-badge" title="CarnetSats version">v3.7.0</span>
     <div>
       <div style="font-weight:700;">Boutique Touba — Marché Sandaga, Dakar</div>
-      <div class="subtitle" id="ui-tagline">Caisse Vocale IA • NWC (NIP-47) • Carnet Nostr (NIP-44) • Coffre BIP-84</div>
+      <div class="subtitle" id="ui-tagline">AI Voice POS • Scoped NWC (NIP-47) • Nostr Book (NIP-44) • BIP-84 Vault</div>
     </div>
   </div>
   <div class="lang-bar">
     <span id="mode-badge" class="mode-badge mode-static">MODE: STATIC</span>
-    <button class="btn active" onclick="setLang('fr')" id="lang-fr">🇫🇷 FR</button>
+    <button class="btn active" onclick="setLang('en')" id="lang-en">🇬🇧 EN</button>
+    <button class="btn" onclick="setLang('fr')" id="lang-fr">🇫🇷 FR</button>
     <button class="btn" onclick="setLang('wo')" id="lang-wo">🇸🇳 WO</button>
-    <button class="btn" onclick="setLang('en')" id="lang-en">🇬🇧 EN</button>
   </div>
 </header>
 
 <div class="container">
   <div class="kpi-grid">
     <div class="kpi-card">
-      <div class="kpi-label" id="lbl-cashbox">Caisse Boutique</div>
+      <div class="kpi-label" id="lbl-cashbox">Shop Hot Balance</div>
       <div class="kpi-val" id="val-cashbox-xof">57 575 FCFA</div>
       <div class="kpi-sub" id="val-cashbox-sats">⚡ 95,000 Sats (NWC)</div>
     </div>
     <div class="kpi-card">
-      <div class="kpi-label" id="lbl-carnet-total">Crédits Clients Actifs</div>
+      <div class="kpi-label" id="lbl-carnet-total">Active Credit Tabs</div>
       <div class="kpi-val" id="val-carnet-xof">0 FCFA</div>
-      <div class="kpi-sub" id="val-carnet-sats">🔏 0 Notes NIP-44</div>
+      <div class="kpi-sub" id="val-carnet-sats">🔏 0 NIP-44 notes</div>
     </div>
     <div class="kpi-card">
-      <div class="kpi-label">Sécurité Clé Caissier / IA</div>
-      <div class="kpi-val" style="color:var(--accent-green);font-size:1.25rem;">LEAST-PRIVILEGE</div>
-      <div class="kpi-sub">Scope: make_invoice | pay_invoice: RESTRICTED</div>
+      <div class="kpi-label" id="lbl-kpi-security">Clerk / AI Key Security</div>
+      <div class="kpi-val" style="color:var(--accent-green);font-size:1.25rem;" id="val-least-priv">LEAST-PRIVILEGE</div>
+      <div class="kpi-sub" id="val-scope">Scope: make_invoice | pay_invoice: RESTRICTED</div>
     </div>
     <div class="kpi-card">
-      <div class="kpi-label">Coffre-Fort Froid BIP-84</div>
-      <div class="kpi-val" style="font-size:1.15rem;color:var(--accent-blue);" id="val-bdk-status">Seuil: 50 000 FCFA</div>
+      <div class="kpi-label" id="lbl-kpi-vault">BIP-84 Cold Vault</div>
+      <div class="kpi-val" style="font-size:1.15rem;color:var(--accent-blue);" id="val-bdk-status">Threshold: 50,000 FCFA</div>
       <div class="kpi-sub" id="val-bdk-addr">tb1q... (watch-only)</div>
     </div>
   </div>
@@ -113,41 +114,41 @@
     <div>
       <div class="panel">
         <div class="panel-title">
-          <span id="lbl-pos-title">1. Note Vocale ou Ticket (FR / Wolof / EN)</span>
-          <span class="badge">Gemini + Deterministic</span>
+          <span id="lbl-pos-title">1. Voice Note or Receipt (FR / Wolof / EN)</span>
+          <span class="badge" id="badge-deterministic">Gemini + Deterministic</span>
         </div>
         <div class="preset-chips">
           <button class="btn" onclick="loadPreset('fr')">🎙️ FR (Moussa)</button>
           <button class="btn" onclick="loadPreset('wo')">🎙️ Wolof (Aminata)</button>
           <button class="btn" onclick="loadPreset('en')">🎙️ EN (Ibrahima)</button>
-          <button class="btn" onclick="startVoiceDictation()">🎤 Micro</button>
+          <button class="btn" onclick="startVoiceDictation()" id="btn-micro">🎤 Mic</button>
         </div>
-        <textarea id="pos-input">Moussa a pris 2 sacs de riz et de l'huile pour 18 000 FCFA, il a payé 10 000 FCFA et doit 8 000 FCFA</textarea>
+        <textarea id="pos-input">Ibrahima bought rice and sugar for 15 000 FCFA, paid 9 000 FCFA now and owes 6 000 FCFA</textarea>
         <div class="action-row">
-          <button class="btn btn-primary" onclick="processSale()" id="btn-generate">⚡ Extraire & Générer Code</button>
+          <button class="btn btn-primary" onclick="processSale()" id="btn-generate">⚡ Parse & Generate Split Invoice</button>
         </div>
         <div class="split-box" id="parsed-summary">
           <div>
-            <div style="font-size:0.78rem;color:var(--muted);" id="lbl-upfront">À ENCAISSER (LIGHTNING)</div>
-            <div style="font-size:1.35rem;font-weight:800;color:var(--accent-green);" id="out-paid-xof">10 000 FCFA</div>
-            <div style="font-size:0.82rem;font-family:monospace;color:var(--muted);" id="out-paid-sats">16,500 Sats</div>
+            <div style="font-size:0.78rem;color:var(--muted);" id="lbl-upfront">PAY UPFRONT (LIGHTNING)</div>
+            <div style="font-size:1.35rem;font-weight:800;color:var(--accent-green);" id="out-paid-xof">9 000 FCFA</div>
+            <div style="font-size:0.82rem;font-family:monospace;color:var(--muted);" id="out-paid-sats">14,850 Sats</div>
           </div>
           <div>
-            <div style="font-size:0.78rem;color:var(--muted);" id="lbl-credit">CARNET (DETTE NOSTR)</div>
-            <div style="font-size:1.35rem;font-weight:800;color:var(--accent);" id="out-debt-xof">8 000 FCFA</div>
-            <div style="font-size:0.82rem;font-family:monospace;color:var(--muted);" id="out-debt-sats">13,200 Sats</div>
+            <div style="font-size:0.78rem;color:var(--muted);" id="lbl-credit">NOSTR TAB (IOU)</div>
+            <div style="font-size:1.35rem;font-weight:800;color:var(--accent);" id="out-debt-xof">6 000 FCFA</div>
+            <div style="font-size:0.82rem;font-family:monospace;color:var(--muted);" id="out-debt-sats">9,900 Sats</div>
           </div>
         </div>
       </div>
 
       <div class="panel">
         <div class="panel-title">
-          <span id="lbl-ledger-title">2. Carnet de Dettes (Nostr NIP-44 / Kind 30078)</span>
-          <button class="btn" onclick="toggleRelayView()" id="btn-toggle-relay">🔍 Payload Relais</button>
+          <span id="lbl-ledger-title">2. Tamper-Proof Credit Book (Nostr NIP-44)</span>
+          <button class="btn" onclick="toggleRelayView()" id="btn-toggle-relay">🔍 Relay Payload</button>
         </div>
         <table>
           <thead>
-            <tr><th>Alias</th><th>Articles</th><th>Payé</th><th>Reste Dû</th><th>LN Hash</th></tr>
+            <tr><th id="th-alias">Alias</th><th id="th-items">Items</th><th id="th-paid">Paid</th><th id="th-due">Balance Due</th><th id="th-hash">LN Hash</th></tr>
           </thead>
           <tbody id="ledger-tbody"></tbody>
         </table>
@@ -158,28 +159,30 @@
     <div>
       <div class="panel" style="text-align:center;">
         <div class="panel-title">
-          <span id="lbl-qr-title">3. Encaissement BOLT11 / NWC</span>
-          <span class="badge" id="invoice-status-badge">EN ATTENTE</span>
+          <span id="lbl-qr-title">3. Instant Settlement (BOLT11 / NWC)</span>
+          <span class="badge" id="invoice-status-badge">PENDING</span>
         </div>
         <div class="qr-box" id="qr-container"></div>
         <div style="font-size:0.85rem;font-weight:700;margin-top:6px;" id="qr-caption">—</div>
         <div class="mono-box" id="bolt11-box">—</div>
         <div class="action-row" style="justify-content:center;">
-          <button class="btn btn-success" onclick="settleCurrentInvoice()" id="btn-settle">✅ Simuler Paiement (Vérifier SHA-256)</button>
+          <button class="btn btn-success" onclick="settleCurrentInvoice()" id="btn-settle">✅ Simulate Tap (Verify SHA-256)</button>
+          <button id="webln-btn" style="display:none">⚡ Payer avec Alby/WebLN</button>
+          <button class="btn" onclick="shareWhatsAppReceipt()" id="btn-whatsapp">📲 WhatsApp Receipt</button>
         </div>
         <div id="settlement-banner" class="alert-banner" style="display:none;text-align:left;"></div>
       </div>
 
       <div class="panel">
         <div class="panel-title">
-          <span id="lbl-sec-title">4. Security-by-Design & Coffre BIP-84</span>
+          <span id="lbl-sec-title">4. Security-by-Design & BIP-84 Vault</span>
         </div>
-        <p style="font-size:0.83rem;color:var(--muted);margin-bottom:10px;">
-          Testez une attaque : la clé NWC de la caisse bloque <code>pay_invoice</code> au niveau protocolaire.
+        <p style="font-size:0.83rem;color:var(--muted);margin-bottom:10px;" id="lbl-sec-text">
+          Test an attack: the shop's NWC key blocks <code>pay_invoice</code> at the protocol layer.
         </p>
         <div class="action-row">
-          <button class="btn btn-danger" onclick="simulateDrainAttack()">🛡️ Attaque pay_invoice → RESTRICTED</button>
-          <button class="btn" onclick="triggerBDKSweep()">🏦 Balayer vers Coffre BIP-84</button>
+          <button class="btn btn-danger" onclick="simulateDrainAttack()" id="btn-attack">🛡️ pay_invoice Attack → RESTRICTED</button>
+          <button class="btn" onclick="triggerBDKSweep()" id="btn-sweep">🏦 Sweep to BIP-84 Vault</button>
         </div>
         <div id="security-alert" class="alert-banner alert-danger" style="display:none;"></div>
         <div class="mono-box" id="audit-log-box">[AUDIT] Prêt.</div>
@@ -190,37 +193,162 @@
 
 <script>
 const SATS_PER_XOF = 1.65;
-let currentLang = 'fr';
+let currentLang = 'en';
 let showEncryptedRelay = false;
 let balanceSats = 95000;
 let currentInvoice = null;
 let backendMode = false;
 
+function T(key) { return I18N[currentLang][key]; }
+
 const I18N = {
   fr: { tagline:"Caisse Vocale IA • NWC (NIP-47) • Carnet Nostr (NIP-44) • Coffre BIP-84",
     cashbox:"Caisse Boutique", carnetTotal:"Crédits Clients Actifs",
+    kpiSecurity:"Sécurité Clé Caissier / IA", kpiVault:"Coffre-Fort Froid BIP-84",
+    kpiVaultThreshold:"Seuil: 50 000 FCFA",
     posTitle:"1. Note Vocale ou Ticket (FR / Wolof / EN)",
     btnGenerate:"⚡ Extraire & Générer Code",
+    btnMicro:"🎤 Micro",
+    badgeDeterministic:"Gemini + Déterministe",
     upfront:"À ENCAISSER (LIGHTNING)", credit:"CARNET (DETTE NOSTR)",
-    ledgerTitle:"2. Carnet de Dettes (Nostr NIP-44 / Kind 30078)",
+    ledgerTitle:"2. Carnet de Dettes (Nostr NIP-44 / Type 30078)",
+    thAlias:"Alias", thItems:"Articles", thPaid:"Payé", thDue:"Reste Dû", thHash:"Empreinte LN",
+    btnRelay:"🔍 Données du relais",
     qrTitle:"3. Encaissement BOLT11 / NWC",
-    btnSettle:"✅ Simuler Paiement (Vérifier SHA-256)" },
+    btnSettle:"✅ Simuler Paiement (Vérifier SHA-256)",
+    btnWhatsApp:"📲 Reçu WhatsApp", btnAudit:"🔎 Schnorr/NIP-44", btnRepay:"💳 Solder", pillSettled:"SOLDÉ",
+    secTitle:"4. Sécurité dès la Conception & Coffre BIP-84",
+    secText:"Testez une attaque : la clé NWC de la caisse bloque <code>pay_invoice</code> au niveau protocolaire.",
+    btnAttack:"🛡️ Attaque pay_invoice → RESTREINT",
+    btnSweep:"🏦 Balayer vers Coffre BIP-84",
+    badgeWaiting:"EN ATTENTE", badgePaid:"PAYÉ & VÉRIFIÉ", badgePaidStatic:"PAYÉ (STATIC DEMO)",
+    notesNip44:"Notes NIP-44",
+    notesNip44One:"Note NIP-44",
+    dictationUnsupported:"Dictée non supportée ici — utilisez les boutons presets.",
+    settleProofTitle:"⚡ Preuve Lightning (backend NWC) :",
+    settlePreimageLabel:"• Preimage (serveur) : ",
+    settleBalanceLabel:"• Nouveau solde : ",
+    settleStaticTitle:"⚠️ Mode static (GitHub Pages) :",
+    settleStaticBody:"vérification en navigateur uniquement.<br/>Pour la vérification serveur NWC complète, lancez <code>./run.sh</code> et ouvrez <code>localhost:8000</code>.",
+    attackLogsLabel:"Logs sanitizés serveur :",
+    sweepRecPrefix:"• Recommandation : balayer ",
+    sweepRecMiddle:" vers ",
+    pageTitle:"CarnetSats — Boutique POS sur Lightning & Nostr (Dakar)",
+    modeLive:"MODE: EN DIRECT FASTAPI", modeStatic:"MODE: STATIQUE",
+    leastPriv:"MOINDRE PRIVILÈGE",
+    scopeLine:"Portée : make_invoice | pay_invoice : RESTREINT",
+    auditReady:"[AUDIT] Prêt.",
+    qrStaticPrefix:"[QR DÉMO STATIQUE - lancez ./run.sh pour un vrai BOLT11] ",
+    paymentHashLabel:"hash_paiement : ",
+    sweepTitle:"🏦 Balayage à Froid BIP-84",
+    firewallBackend:"🛑 PARE-FEU NIP-47 (serveur) :",
+    firewallStatic:"🛑 PARE-FEU NIP-47 (démo statique) :",
+    sweepPolicyNote:"• (Politique uniquement — aucun balayage réel n'est exécuté dans cette démo ; en production, un constructeur PSBT BDK est branché.)",
+    auditSettled:"RÉGLÉ", auditSecurityBlock:"BLOCAGE_SÉCURITÉ",
+    shaCheckBackend:"• SHA256(preimage) == hash_paiement : ",
+    shaCheckStatic:"• SHA256(preimage)==empreinte : ",
+    relayNoteLive:"Vrai NIP-44 v2 (ChaCha20 + HMAC-SHA256, implémentation de la spec)",
+    relayNoteStatic:"Enveloppe démo statique (lancez ./run.sh pour le vrai NIP-44)",
+    fallbackBasket:"Panier Boutique",
+    itemRice:"Riz", itemOil:"Huile", itemSugar:"Sucre" },
   wo: { tagline:"Keesu Botika bi • NWC Lightning • Karné Nostr bu Wóor • Kofar BIP-84",
     cashbox:"Xaalisu Botika bi", carnetTotal:"Bor yi ci Karné bi",
+    kpiSecurity:"Sàmmu Këy Jëfandikukat / IA", kpiVault:"Kofar Sëddu BIP-84",
+    kpiVaultThreshold:"Diggante: 50 000 FCFA",
     posTitle:"1. Waxal walla Bindal li Jëndkat bi Jël",
     btnGenerate:"⚡ Génne Faktir bi ak Karné bi",
-    upfront:"LI MU FAY LÉegi (LIGHTNING)", credit:"LI DES CI KARNÉ BI",
+    btnMicro:"🎤 Wax",
+    badgeDeterministic:"Gemini + luñu Xam",
+    upfront:"LI MU FAY LÉEGI (LIGHTNING)", credit:"LI DES CI KARNÉ BI",
     ledgerTitle:"2. Karné Bor yi (Nostr NIP-44)",
+    thAlias:"Alias", thItems:"Jëfandikoo yi", thPaid:"Fay na", thDue:"Li des", thHash:"LN Hash",
+    btnRelay:"🔍 Gis Mbind ci Sarwiis",
     qrTitle:"3. Fayum Gaaw ci QR Code (BOLT11)",
-    btnSettle:"✅ Jëndkat bi Fay na (Wóoral SHA-256)" },
+    btnSettle:"✅ Jëndkat bi Fay na (Wóoral SHA-256)",
+    btnWhatsApp:"📲 Xibaar WhatsApp", btnAudit:"🔎 Schnorr/NIP-44", btnRepay:"💳 Fayal", pillSettled:"FAY NA",
+    secTitle:"4. Sàmmu ci Jëfandikoo & Kofar BIP-84",
+    secText:"Jéemaal: Këy NWC bu botika bi dafa téye <code>pay_invoice</code>.",
+    btnAttack:"🛡️ Jéemaal pay_invoice → TÉYE",
+    btnSweep:"🏦 Yóbbe ci Kofar BIP-84",
+    badgeWaiting:"XAAR", badgePaid:"FAY NA & WÓORAL NA", badgePaidStatic:"FAY NA (STATIC DEMO)",
+    notesNip44:"Mbindi NIP-44",
+    notesNip44One:"Mbindi NIP-44",
+    dictationUnsupported:"Wax jiñu mënul fii — jëfandikoo butoñ yuñu jox yi.",
+    settleProofTitle:"⚡ Wóoral Lightning (NWC ci ginnaaw) :",
+    settlePreimageLabel:"• Preimage (sarwiis) : ",
+    settleBalanceLabel:"• Xaaliss bu bees : ",
+    settleStaticTitle:"⚠️ Anam bu Static (GitHub Pages) :",
+    settleStaticBody:"wóoral ci boppam ci navigateur rekk.<br/>Ngir wóoral bu mat ci NWC ci sarwiis, dawalu <code>./run.sh</code> te ubbil <code>localhost:8000</code>.",
+    attackLogsLabel:"Log yu sarwiis yuñu laale :",
+    sweepRecPrefix:"• Diggante: yóbbe ",
+    sweepRecMiddle:" ci ",
+    pageTitle:"CarnetSats — Botika POS ci Lightning & Nostr (Dakar)",
+    modeLive:"ANAM: CI GOX FASTAPI", modeStatic:"ANAM: STATIC",
+    leastPriv:"PRIVILÈGE BU GËNNA TUUTI",
+    scopeLine:"Liggéey: make_invoice | pay_invoice: TÉYE",
+    auditReady:"[AUDIT] Jëf na.",
+    qrStaticPrefix:"[QR DÉMO BU STATIC - dawalu ./run.sh ngir BOLT11 bu dëgg] ",
+    paymentHashLabel:"hashu fay : ",
+    sweepTitle:"🏦 Yóbbe ci Kofar Sëddu BIP-84",
+    firewallBackend:"🛑 PARE-FEU NIP-47 (sarwiis) :",
+    firewallStatic:"🛑 PARE-FEU NIP-47 (démo bu static) :",
+    sweepPolicyNote:"• (Diggante rekk — yóbbe bu dëgg amul ci démo bii; ci production, BDK PSBT lañuy jëfandikoo.)",
+    auditSettled:"FAY NA", auditSecurityBlock:"TÉYE_SÉCURITÉ",
+    shaCheckBackend:"• SHA256(preimage) == hashu fay : ",
+    shaCheckStatic:"• SHA256(preimage)==hash : ",
+    relayNoteLive:"NIP-44 v2 bu dëgg (ChaCha20 + HMAC-SHA256)",
+    relayNoteStatic:"Enveloppe démo bu static (dawalu ./run.sh ngir NIP-44 bu dëgg)",
+    fallbackBasket:"Mbindum Botika",
+    itemRice:"Ceeb", itemOil:"Diwlin", itemSugar:"Suukar" },
   en: { tagline:"AI Voice POS • Scoped NWC (NIP-47) • Nostr Book (NIP-44) • BIP-84 Vault",
     cashbox:"Shop Hot Balance", carnetTotal:"Active Credit Tabs",
+    kpiSecurity:"Clerk / AI Key Security", kpiVault:"BIP-84 Cold Vault",
+    kpiVaultThreshold:"Threshold: 50,000 FCFA",
     posTitle:"1. Voice Note or Receipt (FR / Wolof / EN)",
     btnGenerate:"⚡ Parse & Generate Split Invoice",
+    btnMicro:"🎤 Mic",
+    badgeDeterministic:"Gemini + Deterministic",
     upfront:"PAY UPFRONT (LIGHTNING)", credit:"NOSTR TAB (IOU)",
     ledgerTitle:"2. Tamper-Proof Credit Book (Nostr NIP-44)",
+    thAlias:"Alias", thItems:"Items", thPaid:"Paid", thDue:"Balance Due", thHash:"LN Hash",
+    btnRelay:"🔍 Relay Payload",
     qrTitle:"3. Instant Settlement (BOLT11 / NWC)",
-    btnSettle:"✅ Simulate Tap (Verify SHA-256)" }
+    btnSettle:"✅ Simulate Tap (Verify SHA-256)",
+    btnWhatsApp:"📲 WhatsApp Receipt", btnAudit:"🔎 Schnorr/NIP-44", btnRepay:"💳 Repay", pillSettled:"PAID OFF",
+    secTitle:"4. Security-by-Design & BIP-84 Vault",
+    secText:"Test an attack: the shop's NWC key blocks <code>pay_invoice</code> at the protocol layer.",
+    btnAttack:"🛡️ pay_invoice Attack → RESTRICTED",
+    btnSweep:"🏦 Sweep to BIP-84 Vault",
+    badgeWaiting:"PENDING", badgePaid:"PAID & VERIFIED", badgePaidStatic:"PAID (STATIC DEMO)",
+    notesNip44:"NIP-44 notes",
+    notesNip44One:"NIP-44 note",
+    dictationUnsupported:"Dictation is not supported here — use the preset buttons.",
+    settleProofTitle:"⚡ Lightning proof (NWC backend):",
+    settlePreimageLabel:"• Preimage (server): ",
+    settleBalanceLabel:"• New balance: ",
+    settleStaticTitle:"⚠️ Static mode (GitHub Pages):",
+    settleStaticBody:"browser-only verification.<br/>For full server-side NWC verification, run <code>./run.sh</code> and open <code>localhost:8000</code>.",
+    attackLogsLabel:"Server sanitized logs:",
+    sweepRecPrefix:"• Recommendation: sweep ",
+    sweepRecMiddle:" to ",
+    pageTitle:"CarnetSats — Boutique POS on Lightning & Nostr (Dakar)",
+    modeLive:"MODE: LIVE FASTAPI", modeStatic:"MODE: STATIC",
+    leastPriv:"LEAST-PRIVILEGE",
+    scopeLine:"Scope: make_invoice | pay_invoice: RESTRICTED",
+    auditReady:"[AUDIT] Ready.",
+    qrStaticPrefix:"[STATIC DEMO QR - run ./run.sh for real BOLT11] ",
+    paymentHashLabel:"payment_hash: ",
+    sweepTitle:"🏦 BIP-84 Cold Sweep",
+    firewallBackend:"🛑 NIP-47 FIREWALL (backend) :",
+    firewallStatic:"🛑 NIP-47 FIREWALL (static demo) :",
+    sweepPolicyNote:"• (Policy only — no actual sweep is executed in this demo; production wires a BDK PSBT builder.)",
+    auditSettled:"SETTLED", auditSecurityBlock:"SECURITY_BLOCK",
+    shaCheckBackend:"• SHA256(preimage) == payment_hash : ",
+    shaCheckStatic:"• SHA256(preimage)==hash : ",
+    relayNoteLive:"Real NIP-44 v2 (ChaCha20 + HMAC-SHA256, spec implementation)",
+    relayNoteStatic:"Static demo envelope (run ./run.sh for real NIP-44)",
+    fallbackBasket:"Shop Basket",
+    itemRice:"Rice", itemOil:"Oil", itemSugar:"Sugar" }
 };
 
 const PRESETS = {
@@ -287,20 +415,72 @@ function renderDeterministicQR(seedText) {
     `<svg width="147" height="147" viewBox="0 0 147 147" xmlns="http://www.w3.org/2000/svg">${cells}</svg>`;
 }
 
+function updateModeBadge() {
+  const b = document.getElementById('mode-badge');
+  b.textContent = backendMode ? T('modeLive') : T('modeStatic');
+  b.className = 'mode-badge ' + (backendMode ? 'mode-live' : 'mode-static');
+}
+
 function setLang(lang) {
   currentLang = lang;
+  document.documentElement.lang = lang;
+  document.title = I18N[lang].pageTitle;
   ['fr','wo','en'].forEach(l => document.getElementById('lang-'+l).classList.toggle('active', l===lang));
   const t = I18N[lang];
   document.getElementById('ui-tagline').textContent = t.tagline;
   document.getElementById('lbl-cashbox').textContent = t.cashbox;
   document.getElementById('lbl-carnet-total').textContent = t.carnetTotal;
+  document.getElementById('lbl-kpi-security').textContent = t.kpiSecurity;
+  document.getElementById('lbl-kpi-vault').textContent = t.kpiVault;
+  document.getElementById('val-bdk-status').textContent = t.kpiVaultThreshold;
+  document.getElementById('val-least-priv').textContent = t.leastPriv;
+  document.getElementById('val-scope').textContent = t.scopeLine;
   document.getElementById('lbl-pos-title').textContent = t.posTitle;
+  document.getElementById('badge-deterministic').textContent = t.badgeDeterministic;
   document.getElementById('btn-generate').textContent = t.btnGenerate;
+  document.getElementById('btn-micro').textContent = t.btnMicro;
   document.getElementById('lbl-upfront').textContent = t.upfront;
   document.getElementById('lbl-credit').textContent = t.credit;
   document.getElementById('lbl-ledger-title').textContent = t.ledgerTitle;
+  document.getElementById('th-alias').textContent = t.thAlias;
+  document.getElementById('th-items').textContent = t.thItems;
+  document.getElementById('th-paid').textContent = t.thPaid;
+  document.getElementById('th-due').textContent = t.thDue;
+  document.getElementById('th-hash').textContent = t.thHash;
+  document.getElementById('btn-toggle-relay').textContent = t.btnRelay;
   document.getElementById('lbl-qr-title').textContent = t.qrTitle;
   document.getElementById('btn-settle').textContent = t.btnSettle;
+  document.getElementById('btn-whatsapp').textContent = t.btnWhatsApp;
+  document.getElementById('lbl-sec-title').textContent = t.secTitle;
+  document.getElementById('lbl-sec-text').innerHTML = t.secText;
+  document.getElementById('btn-attack').textContent = t.btnAttack;
+  document.getElementById('btn-sweep').textContent = t.btnSweep;
+  updateModeBadge();
+  // Audit log: only replace the default "ready" line, never a real log entry.
+  const auditBox = document.getElementById('audit-log-box');
+  const readyTexts = Object.values(I18N).map(d => d.auditReady);
+  if (readyTexts.includes(auditBox.textContent.trim())) auditBox.textContent = t.auditReady;
+  // Example text: only swap it when the box still holds an example preset,
+  // never when the user has typed their own text.
+  const input = document.getElementById('pos-input');
+  if (Object.values(PRESETS).includes(input.value)) input.value = PRESETS[lang];
+  // Invoice badge follows the invoice state, in the new language.
+  if (currentInvoice) {
+    document.getElementById('invoice-status-badge').textContent =
+      currentInvoice.settled ? (currentInvoice.backendMode ? t.badgePaid : t.badgePaidStatic) : t.badgeWaiting;
+    // Re-render the BOLT11 box and QR caption so the payment-hash label
+    // and the static-QR prefix follow the new language too.
+    document.getElementById('bolt11-box').textContent =
+      `${currentInvoice.backendMode ? '[FASTAPI] ' : '[STATIC] '}${currentInvoice.bolt11}\n${t.paymentHashLabel}${currentInvoice.paymentHash}`;
+    document.getElementById('qr-caption').textContent =
+      `${currentInvoice.backendMode ? '' : t.qrStaticPrefix}${currentInvoice.customer} • ${currentInvoice.paidXof.toLocaleString('fr-FR')} FCFA (${currentInvoice.paidSats.toLocaleString()} Sats)`;
+  }
+  // Re-render the ledger so item names follow the new language.
+  renderLedger();
+  // Re-render the settlement banner and security alert so their labels
+  // follow the new language instead of staying in the old one (rev3).
+  renderSettlementBanner();
+  renderSecurityAlert();
 }
 
 function loadPreset(lang) {
@@ -311,7 +491,7 @@ function loadPreset(lang) {
 
 function startVoiceDictation() {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) { alert("Dictée non supportée ici — utilisez les boutons presets."); return; }
+  if (!SR) { alert(T('dictationUnsupported')); return; }
   const rec = new SR();
   rec.lang = currentLang === 'en' ? 'en-US' : 'fr-FR';
   rec.onresult = (e) => {
@@ -328,8 +508,7 @@ async function detectBackend() {
       backendMode = true;
       const body = await r.json();
       balanceSats = body.balance_sats;
-      document.getElementById('mode-badge').textContent = 'MODE: LIVE FASTAPI';
-      document.getElementById('mode-badge').className = 'mode-badge mode-live';
+      updateModeBadge();
       if (body.bdk_treasury && body.bdk_treasury.vault_destination) {
         document.getElementById('val-bdk-addr').textContent = body.bdk_treasury.vault_destination;
       }
@@ -340,7 +519,29 @@ async function detectBackend() {
   }
 }
 
+// Duplicate-sale guard: preset buttons call processSale() themselves, so a
+// preset click followed by Parse (or a double-click) must not create two
+// identical sales. Ignore a call while one is in flight, and ignore the
+// exact same text re-submitted after a completed sale, no matter how much
+// time has passed. Editing the text (even one character) allows a new sale.
+let saleInFlight = false;
+let lastSaleText = '';
+
 async function processSale() {
+  const text = document.getElementById('pos-input').value.trim();
+  if (!text) return;
+  if (saleInFlight) return;
+  if (text === lastSaleText) return;
+  saleInFlight = true;
+  try {
+    await processSaleInner();
+    lastSaleText = text;
+  } finally {
+    saleInFlight = false;
+  }
+}
+
+async function processSaleInner() {
   const text = document.getElementById('pos-input').value.trim();
 
   if (backendMode) {
@@ -380,10 +581,24 @@ async function processSale() {
         renderLedger();
         return;
       }
-    } catch (_) { /* fall through to static */ }
+      // Backend answered with an error (e.g. the real wallet is
+      // unreachable in live NWC mode): do NOT fall through to a fabricated
+      // static demo invoice. Show the failure and stop.
+      let detail = '';
+      try { detail = (await r.json()).detail || ''; } catch (_) { /* ignore */ }
+      document.getElementById('audit-log-box').textContent =
+        `[${new Date().toISOString()}] CHECKOUT FAILED (${r.status}) ${detail}`;
+      return;
+    } catch (_) {
+      // Backend unreachable: same rule, never fabricate a static invoice
+      // when a backend was expected.
+      document.getElementById('audit-log-box').textContent =
+        `[${new Date().toISOString()}] CHECKOUT FAILED: backend unreachable`;
+      return;
+    }
   }
 
-  // Static fallback
+  // Static fallback (only when there is no backend at all: GitHub Pages)
   const norm = text.replace(/(\d{1,3})[\s,](\d{3})\b/g, '$1$2');
   const nums = (norm.match(/\b\d{3,7}\b/g) || []).map(Number);
   let totalXof = 18000, paidXof = 10000;
@@ -396,10 +611,10 @@ async function processSale() {
   const customer = nameMatch ? nameMatch[1] : "Client";
   const items = [];
   const low = text.toLowerCase();
-  if (low.includes('riz')||low.includes('ceeb')||low.includes('rice')) items.push('Riz / Ceeb');
-  if (low.includes('huile')||low.includes('diwlin')||low.includes('oil')) items.push('Huile / Diwlin');
-  if (low.includes('sucre')||low.includes('suukar')||low.includes('sugar')) items.push('Sucre');
-  if (items.length === 0) items.push('Panier Boutique');
+  if (low.includes('riz')||low.includes('ceeb')||low.includes('rice')) items.push(T('itemRice'));
+  if (low.includes('huile')||low.includes('diwlin')||low.includes('oil')) items.push(T('itemOil'));
+  if (low.includes('sucre')||low.includes('suukar')||low.includes('sugar')) items.push(T('itemSugar'));
+  if (items.length === 0) items.push(T('fallbackBasket'));
 
   const preimage = await sha256Hex(`static-preimage:${text}:${Date.now()}`);
   const paymentHash = await sha256Hex(preimage);
@@ -430,13 +645,82 @@ function updateUIFromInvoice(p, inv) {
   document.getElementById('out-debt-xof').textContent = `${p.credit_owed_xof.toLocaleString('fr-FR')} FCFA`;
   document.getElementById('out-debt-sats').textContent = `${p.credit_owed_sats.toLocaleString()} Sats`;
   document.getElementById('qr-caption').textContent =
-    `${backendMode ? '' : '[STATIC DEMO QR - run ./run.sh for real BOLT11] '}${p.customer_name} • ${p.paid_upfront_xof.toLocaleString('fr-FR')} FCFA (${p.upfront_sats.toLocaleString()} Sats)`;
+    `${backendMode ? '' : T('qrStaticPrefix')}${p.customer_name} • ${p.paid_upfront_xof.toLocaleString('fr-FR')} FCFA (${p.upfront_sats.toLocaleString()} Sats)`;
   document.getElementById('bolt11-box').textContent =
-    `${backendMode ? '[FASTAPI] ' : '[STATIC] '}${inv.invoice}\npayment_hash: ${inv.payment_hash}`;
-  document.getElementById('invoice-status-badge').textContent = "EN ATTENTE";
+    `${backendMode ? '[FASTAPI] ' : '[STATIC] '}${inv.invoice}\n${T('paymentHashLabel')}${inv.payment_hash}`;
+  document.getElementById('invoice-status-badge').textContent = T('badgeWaiting');
   document.getElementById('invoice-status-badge').style.color = "#fbbf24";
   document.getElementById('settlement-banner').style.display = "none";
   renderDeterministicQR(inv.invoice);
+  tryWebLNPayment(inv.invoice);
+}
+
+// WebLN (v3.7): one-click browser-wallet payment (e.g. Alby). No wallet
+// installed = silent no-op: the button stays hidden and nothing breaks,
+// including in static (GitHub Pages) mode. User denial or a wallet error
+// is also silent: the QR / settle flow is untouched.
+async function tryWebLNPayment(invoice) {
+  const btn = document.getElementById('webln-btn');
+  if (!btn) return;
+  btn.style.display = 'none';
+  btn.onclick = null;
+  if (!window.webln) return;
+  try {
+    await window.webln.enable();
+  } catch (_) { return; }
+  btn.style.display = '';
+  btn.onclick = async () => {
+    if (!currentInvoice || currentInvoice.settled) return;
+    try {
+      await window.webln.sendPayment(invoice);
+    } catch (_) { return; }
+    try {
+      const r = await fetch('/api/settle', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({payment_hash: currentInvoice.paymentHash})
+      });
+      if (!r.ok) return;
+      const body = await r.json();
+      const s = body.settlement;
+      currentInvoice.settled = true;
+      balanceSats = s.new_balance_sats;
+      updateTopKPIs();
+      document.getElementById('invoice-status-badge').textContent = T('badgePaid');
+      document.getElementById('invoice-status-badge').style.color = "#34d399";
+      currentInvoice.settlement = {preimage: s.preimage, verified_sha256: s.verified_sha256, new_balance_sats: s.new_balance_sats};
+      renderSettlementBanner();
+      document.getElementById('audit-log-box').textContent =
+        `[${new Date().toISOString()}] ${T('auditSettled')} +${currentInvoice.paidSats} sats | hash=${currentInvoice.paymentHash.slice(0,16)}...`;
+    } catch (_) { /* static mode / backend unreachable: settle stays silent */ }
+  };
+}
+
+// Settlement banner (v3.7 rev3): the banner is rendered once at settle time,
+// so store the settlement data on the invoice and re-render it from setLang()
+// whenever the language changes. Without this the labels stay in the language
+// the sale was settled in (e.g. Wolof labels after switching back to EN).
+function renderSettlementBanner() {
+  if (!currentInvoice || !currentInvoice.settlement) return;
+  const b = document.getElementById('settlement-banner');
+  b.style.display = "block";
+  const s = currentInvoice.settlement;
+  if (s.pending) {
+    // Not paid yet (e.g. the real wallet says the customer has not paid):
+    // PENDING, in the current language, never a fake paid state.
+    b.innerHTML =
+      `<strong>${T('badgeWaiting')}</strong><br/>` +
+      `${T('paymentHashLabel')}<code>${currentInvoice.paymentHash}</code>`;
+  } else if (s.static) {
+    b.innerHTML =
+      `<strong>${T('settleStaticTitle')}</strong> ${T('settleStaticBody')}<br/>` +
+      `${T('shaCheckStatic')}<code>${s.verifiedHash}</code>`;
+  } else {
+    b.innerHTML =
+      `<strong>${T('settleProofTitle')}</strong><br/>` +
+      `${T('settlePreimageLabel')}<code>${s.preimage.slice(0,28)}...</code><br/>` +
+      `${T('shaCheckBackend')}<code>${s.verified_sha256}</code><br/>` +
+      `${T('settleBalanceLabel')}<strong>${s.new_balance_sats.toLocaleString()} Sats</strong>`;
+  }
 }
 
 async function settleCurrentInvoice() {
@@ -454,35 +738,67 @@ async function settleCurrentInvoice() {
         currentInvoice.settled = true;
         balanceSats = s.new_balance_sats;
         updateTopKPIs();
-        document.getElementById('invoice-status-badge').textContent = "PAYÉ & VÉRIFIÉ";
+        document.getElementById('invoice-status-badge').textContent = T('badgePaid');
         document.getElementById('invoice-status-badge').style.color = "#34d399";
-        const b = document.getElementById('settlement-banner');
-        b.style.display = "block";
-        b.innerHTML =
-          `<strong>⚡ Preuve Lightning (backend NWC) :</strong><br/>` +
-          `• Preimage (serveur) : <code>${s.preimage.slice(0,28)}...</code><br/>` +
-          `• SHA256(preimage) == payment_hash : <code>${s.verified_sha256}</code><br/>` +
-          `• Nouveau solde : <strong>${s.new_balance_sats.toLocaleString()} Sats</strong>`;
+        currentInvoice.settlement = {preimage: s.preimage, verified_sha256: s.verified_sha256, new_balance_sats: s.new_balance_sats};
+        renderSettlementBanner();
         document.getElementById('audit-log-box').textContent =
-          `[${new Date().toISOString()}] SETTLED +${currentInvoice.paidSats} sats | hash=${currentInvoice.paymentHash.slice(0,16)}...`;
+          `[${new Date().toISOString()}] ${T('auditSettled')} +${currentInvoice.paidSats} sats | hash=${currentInvoice.paymentHash.slice(0,16)}...`;
         return;
       }
-    } catch (_) { /* fall through */ }
+      // Backend answered but the invoice is NOT settled (e.g. the real
+      // wallet says the customer has not paid yet): show PENDING, never
+      // fall through to the static path that would mark it paid.
+      let detail = '';
+      try { detail = (await r.json()).detail || ''; } catch (_) { /* ignore */ }
+      document.getElementById('invoice-status-badge').textContent = T('badgeWaiting');
+      document.getElementById('invoice-status-badge').style.color = "#fbbf24";
+      currentInvoice.settlement = {pending: true};
+      renderSettlementBanner();
+      document.getElementById('audit-log-box').textContent =
+        `[${new Date().toISOString()}] SETTLE NOT PAID: ${detail}`;
+      return;
+    } catch (_) {
+      document.getElementById('invoice-status-badge').textContent = T('badgeWaiting');
+      document.getElementById('invoice-status-badge').style.color = "#fbbf24";
+      currentInvoice.settlement = {pending: true};
+      renderSettlementBanner();
+      document.getElementById('audit-log-box').textContent =
+        `[${new Date().toISOString()}] SETTLE FAILED: backend unreachable`;
+      return;
+    }
   }
 
-  // Static fallback
+  // Static fallback (only when there is no backend at all: GitHub Pages)
   const verifiedHash = await sha256Hex(currentInvoice.preimage);
   currentInvoice.settled = true;
   balanceSats += currentInvoice.paidSats;
   updateTopKPIs();
-  document.getElementById('invoice-status-badge').textContent = "PAYÉ (STATIC DEMO)";
+  document.getElementById('invoice-status-badge').textContent = T('badgePaidStatic');
   document.getElementById('invoice-status-badge').style.color = "#34d399";
-  const b = document.getElementById('settlement-banner');
-  b.style.display = "block";
-  b.innerHTML =
-    `<strong>⚠️ Mode static (GitHub Pages) :</strong> vérification en navigateur uniquement.<br/>` +
-    `Pour la vérification serveur NWC complète, lancez <code>./run.sh</code> et ouvrez <code>localhost:8000</code>.<br/>` +
-    `• SHA256(preimage)==hash : <code>${verifiedHash === currentInvoice.paymentHash}</code>`;
+  currentInvoice.settlement = {static: true, verifiedHash: verifiedHash === currentInvoice.paymentHash};
+  renderSettlementBanner();
+}
+
+// Security alert (v3.7 rev3): same pattern as the settlement banner. The
+// alert is rendered once at attack time, so store its data and re-render it
+// from setLang() whenever the language changes.
+let lastSecurityAlert = null;
+
+function renderSecurityAlert() {
+  if (!lastSecurityAlert) return;
+  const alertBox = document.getElementById('security-alert');
+  alertBox.style.display = "block";
+  if (lastSecurityAlert.mode === 'backend') {
+    alertBox.innerHTML =
+      `<strong>${T('firewallBackend')}</strong><br/>` +
+      `<code>{"error":{"code":"${lastSecurityAlert.errCode}"}}</code><br/>` +
+      `${T('attackLogsLabel')}<br/><pre style="font-size:0.7rem;">${lastSecurityAlert.logs.join('\n')}</pre>`;
+  } else {
+    alertBox.innerHTML =
+      `<strong>${T('firewallStatic')}</strong><br/>` +
+      `<code>{"result_type":"pay_invoice","error":{"code":"RESTRICTED"}}</code>`;
+  }
 }
 
 async function simulateDrainAttack() {
@@ -495,24 +811,17 @@ async function simulateDrainAttack() {
       if (r.ok) {
         const body = await r.json();
         const errCode = body.nip47_response.error.code;
-        const alertBox = document.getElementById('security-alert');
-        alertBox.style.display = "block";
-        alertBox.innerHTML =
-          `<strong>🛑 NIP-47 FIREWALL (backend) :</strong><br/>` +
-          `<code>{"error":{"code":"${errCode}"}}</code><br/>` +
-          `Logs sanitizés serveur :<br/><pre style="font-size:0.7rem;">${body.sanitized_logs.join('\n')}</pre>`;
+        lastSecurityAlert = {mode: 'backend', errCode: errCode, logs: body.sanitized_logs};
+        renderSecurityAlert();
         document.getElementById('audit-log-box').textContent = body.sanitized_logs.slice(-3).join('\n');
         return;
       }
     } catch (_) { /* fall through */ }
   }
-  const alertBox = document.getElementById('security-alert');
-  alertBox.style.display = "block";
-  alertBox.innerHTML =
-    `<strong>🛑 NIP-47 FIREWALL (static demo) :</strong><br/>` +
-    `<code>{"result_type":"pay_invoice","error":{"code":"RESTRICTED"}}</code>`;
+  lastSecurityAlert = {mode: 'static'};
+  renderSecurityAlert();
   document.getElementById('audit-log-box').textContent =
-    `[${new Date().toISOString()}] SECURITY_BLOCK pay_invoice -> RESTRICTED | phone=[REDACTED_PHONE_SN]`;
+    `[${new Date().toISOString()}] ${T('auditSecurityBlock')} pay_invoice -> RESTRICTED | phone=[REDACTED_PHONE_SN]`;
 }
 
 async function triggerBDKSweep() {
@@ -536,22 +845,46 @@ async function triggerBDKSweep() {
   b.style.display = "block";
   b.className = "alert-banner";
   b.innerHTML =
-    `<strong>🏦 BIP-84 Cold Sweep ${source} :</strong><br/>` +
-    `• Recommandation : balayer <strong>${sweepSats.toLocaleString()} Sats</strong> vers <code>${vaultAddr}</code><br/>` +
-    `• (Policy only — no actual sweep is executed in this demo; production wires a BDK PSBT builder.)`;
+    `<strong>${T('sweepTitle')} ${source} :</strong><br/>` +
+    `${T('sweepRecPrefix')}<strong>${sweepSats.toLocaleString()} Sats</strong>${T('sweepRecMiddle')}<code>${vaultAddr}</code><br/>` +
+    `${T('sweepPolicyNote')}`;
 }
 
-function toggleRelayView() {
+async function toggleRelayView() {
   showEncryptedRelay = !showEncryptedRelay;
   const rawBox = document.getElementById('nostr-raw-box');
   rawBox.style.display = showEncryptedRelay ? 'block' : 'none';
-  if (showEncryptedRelay && ledgerEntries.length > 0) {
+  if (!showEncryptedRelay) return;
+  if (backendMode) {
+    // Live mode: ask the server for the latest event including its real
+    // relay publish status (published_to), not just the local cipher.
+    try {
+      const r = await fetch('/api/nostr-events');
+      if (r.ok) {
+        const body = await r.json();
+        const evs = body.events || [];
+        if (evs.length > 0) {
+          const top = evs[evs.length - 1];
+          rawBox.textContent = JSON.stringify({
+            kind: 30078,
+            id: top.id,
+            tags: top.tags,
+            published_to: top.published_to,
+            publish_error: top.publish_error || undefined,
+            note: T('relayNoteLive')
+          }, null, 2);
+          return;
+        }
+      }
+    } catch (_) { /* fall through to the local display below */ }
+  }
+  if (ledgerEntries.length > 0) {
     const top = ledgerEntries[0];
     rawBox.textContent = JSON.stringify({
       kind: 30078,
       tags: [["d", `carnetsats:tab:${top.alias}`], ["encryption", "nip44_v2"], ["ln_hash", top.hash]],
       content: top.cipher,
-      note: backendMode ? "Real NIP-44 v2 (ChaCha20 + HMAC-SHA256, spec implementation)" : "Static demo envelope (run ./run.sh for real NIP-44)"
+      note: backendMode ? T('relayNoteLive') : T('relayNoteStatic')
     }, null, 2);
   }
 }
@@ -562,17 +895,121 @@ function updateTopKPIs() {
   document.getElementById('val-cashbox-sats').textContent = `⚡ ${balanceSats.toLocaleString()} Sats`;
   const totalDebt = ledgerEntries.reduce((a,e) => a + e.debtXof, 0);
   document.getElementById('val-carnet-xof').textContent = `${totalDebt.toLocaleString('fr-FR')} FCFA`;
-  document.getElementById('val-carnet-sats').textContent = `🔏 ${ledgerEntries.length} Notes NIP-44`;
+  document.getElementById('val-carnet-sats').textContent = `🔏 ${ledgerEntries.length} ${ledgerEntries.length === 1 ? T('notesNip44One') : T('notesNip44')}`;
+}
+
+// Backend item labels arrive in the language of the sale transcript
+// ("Bag of Rice", "Riz parfumé (Sac)", "Ceeb (Riz local)", ...). Map every
+// known label, in any language, back to its item key so the ledger can be
+// re-rendered in the current language when the user switches.
+const ITEM_KEY_MAP = {
+  "bag of rice":"itemRice", "riz parfumé (sac)":"itemRice", "ceeb (riz local)":"itemRice",
+  "rice":"itemRice", "riz":"itemRice", "ceeb":"itemRice",
+  "cooking oil":"itemOil", "huile végétale (bidon)":"itemOil", "diwlin (huile)":"itemOil",
+  "oil":"itemOil", "huile":"itemOil", "diwlin":"itemOil",
+  "sugar":"itemSugar", "sucre en poudre":"itemSugar", "suukar (sucre)":"itemSugar",
+  "sucre":"itemSugar", "suukar":"itemSugar",
+  "panier marchandises boutique (articles divers)":"fallbackBasket",
+  "shop basket":"fallbackBasket", "panier boutique":"fallbackBasket", "mbindum botika":"fallbackBasket"
+};
+function translateItems(itemsStr) {
+  return itemsStr.split(',').map(s => {
+    const k = ITEM_KEY_MAP[s.trim().toLowerCase()];
+    return k ? T(k) : s.trim();
+  }).join(', ');
+}
+
+async function auditNostrRow(idx) {
+  const entry = ledgerEntries[idx];
+  if (!entry) return;
+  const rawBox = document.getElementById('nostr-raw-box');
+  rawBox.style.display = 'block';
+  if (backendMode && entry.id) {
+    try {
+      const [vResp, dResp] = await Promise.all([
+        fetch(`/api/verify-nostr-event/${entry.id}`),
+        fetch(`/api/decrypt-nostr-event/${entry.id}`, {method: 'POST'})
+      ]);
+      if (!vResp.ok || !dResp.ok) throw new Error('audit fetch failed');
+      const vData = await vResp.json();
+      const dData = await dResp.json();
+      rawBox.textContent = JSON.stringify({
+        nostr_event_id: entry.id,
+        bip340_schnorr_verified: vData.verified,
+        nip44_v2_ciphertext_prefix: String(entry.cipher).slice(0, 44) + "...",
+        nip44_v2_decrypted_payload: dData.decrypted
+      }, null, 2);
+      return;
+    } catch (_) { /* fall through to the local view below */ }
+  }
+  rawBox.textContent = JSON.stringify({
+    alias: entry.alias,
+    nip44_ciphertext: entry.cipher,
+    note: "Run ./run.sh or open the live Render URL for server-side Schnorr & NIP-44 decryption"
+  }, null, 2);
+}
+
+async function repayTabRow(idx) {
+  const entry = ledgerEntries[idx];
+  if (!entry || entry.debtXof === 0) return;
+  const settledDebt = entry.debtXof;
+  if (backendMode && entry.id) {
+    try {
+      const r = await fetch('/api/repay-tab', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({event_id: entry.id})
+      });
+      if (r.ok) {
+        const body = await r.json();
+        balanceSats = body.new_balance_sats;
+        entry.paidXof += settledDebt;
+        entry.debtXof = 0;
+        entry.id = body.replacement_event.id;
+        entry.cipher = body.replacement_event.content;
+        renderLedger();
+        const rawBox = document.getElementById('nostr-raw-box');
+        rawBox.style.display = 'block';
+        rawBox.textContent = JSON.stringify({
+          nip78_replaceable_update: "SUCCESS (Kind 30078 state replaced -> debt_remaining_xof = 0)",
+          d_tag: body.replacement_event.tags[0],
+          replacement_event_id: body.replacement_event.id
+        }, null, 2);
+        return;
+      }
+    } catch (_) { /* fall through to the local-only settle below */ }
+  }
+  // Static fallback: no backend event to replace, so settle the row locally.
+  entry.paidXof += settledDebt;
+  entry.debtXof = 0;
+  renderLedger();
+}
+
+function shareWhatsAppReceipt() {
+  if (!currentInvoice) return;
+  const msg =
+    `⚡ *Reçu CarnetSats — Boutique Touba (Dakar)*\n` +
+    `• Client: ${currentInvoice.customer} (${currentInvoice.alias})\n` +
+    `• Articles: ${translateItems(currentInvoice.items)}\n` +
+    `• Payé Lightning: ${currentInvoice.paidXof.toLocaleString('fr-FR')} FCFA (${currentInvoice.paidSats.toLocaleString()} Sats)\n` +
+    `• Reste Carnet Nostr (NIP-44): ${currentInvoice.debtXof.toLocaleString('fr-FR')} FCFA\n` +
+    `• Preuve Hash: ${currentInvoice.paymentHash.slice(0, 20)}...`;
+  window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
 }
 
 function renderLedger() {
-  document.getElementById('ledger-tbody').innerHTML = ledgerEntries.slice(0,6).map(e => `
+  document.getElementById('ledger-tbody').innerHTML = ledgerEntries.slice(0,6).map((e, idx) => `
     <tr>
       <td><code>${e.alias}</code> <span style="color:var(--muted);">(${e.display})</span></td>
-      <td>${e.items}</td>
+      <td>${translateItems(e.items)}</td>
       <td><span class="status-pill pill-paid">${e.paidXof.toLocaleString('fr-FR')} FCFA</span></td>
-      <td><span class="status-pill pill-credit">${e.debtXof.toLocaleString('fr-FR')} FCFA</span></td>
-      <td><code>${e.hash.slice(0,10)}...</code></td>
+      <td><span class="status-pill ${e.debtXof === 0 ? 'pill-paid' : 'pill-credit'}">${e.debtXof.toLocaleString('fr-FR')} FCFA</span></td>
+      <td><code>${e.hash.slice(0,10)}...</code><br/>
+        <span style="display:inline-flex;gap:4px;flex-wrap:wrap;margin-top:4px;">
+          <button class="btn" style="padding:3px 7px;font-size:0.72rem;" onclick="auditNostrRow(${idx})">${T('btnAudit')}</button>
+          ${e.debtXof > 0 ? `<button class="btn btn-success" style="padding:3px 7px;font-size:0.72rem;" onclick="repayTabRow(${idx})">${T('btnRepay')}</button>` : `<span class="status-pill pill-paid">${T('pillSettled')}</span>`}
+        </span>
+      </td>
     </tr>
   `).join('');
   updateTopKPIs();

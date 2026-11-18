@@ -1,5 +1,5 @@
 """
-CarnetSats Core Engine v3.3.0 — Dakar Bitcoin Hack by BTrust
+CarnetSats Core Engine v3.7.0 — Dakar Bitcoin Hack by BTrust
 Real-primitive implementation:
 1. NIP-47 (NWC) Least-Privilege Wallet Engine with real BOLT11 encoding (pyln-client / bolt11 spec)
 2. Real BIP-84 wpkh derivation (bip-utils) for Signet cold vault
@@ -12,6 +12,8 @@ Honest claims:
   expiry, valid checksum) and signed with a deterministic DEMO secp256k1 key
   (sha256 of a fixed demo string, NOT a real node key). In production the LN
   node's `sign_invoice` RPC produces the same shape with a real key.
+  Since rev4, live NWC mode (CARNETSATS_NWC_URL set) skips this signer
+  entirely: the BOLT11 comes from the real wallet's make_invoice.
 - NIP-44 v2: real ChaCha20 + HMAC-SHA256 + padding per NIP-44 spec, implemented
   here from the spec (secp256k1 ECDH, HKDF-SHA256, ChaCha20, HMAC-SHA256,
   base64). pynostr 0.7 has no nip44 module and its EncryptedDirectMessage is
@@ -31,7 +33,12 @@ import math
 import os
 import re
 import secrets
+import sqlite3
+import sys
+import threading
 import time
+import urllib.parse
+from pathlib import Path
 from typing import Dict, List, Literal, Optional, Tuple
 from pydantic import BaseModel, Field
 
@@ -81,6 +88,13 @@ try:
 except Exception:
     GENAI_AVAILABLE = False
 
+try:
+    import httpx
+    _HTTPX_AVAILABLE = True
+except Exception:
+    httpx = None  # type: ignore[assignment]
+    _HTTPX_AVAILABLE = False
+
 
 # =====================================================================
 # 1. CONSTANTS
@@ -88,6 +102,65 @@ except Exception:
 DEFAULT_SATS_PER_XOF = 1.65
 DEFAULT_SATS_PER_NGN = 0.62
 HOT_WALLET_SWEEP_THRESHOLD_XOF = 50_000
+
+
+# =====================================================================
+# 1b. LIVE FX FEED (CoinGecko, cached 5 min, fallback 1.65)
+# =====================================================================
+# sats_per_xof() is the single source of the BTC/XOF rate. It tries a live
+# CoinGecko price once per 5-minute bucket and caches the result (including
+# the 1.65 fallback, so a dead network is not hammered on every call).
+# ANY failure — no network, timeout, bad JSON, missing key, non-positive
+# price, httpx missing — returns DEFAULT_SATS_PER_XOF (1.65), unchanged.
+COINGECKO_PRICE_URL = "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=xof"
+FX_CACHE_TTL_SECONDS = 300
+_FX_CACHE: Dict[str, object] = {"bucket": None, "rate": DEFAULT_SATS_PER_XOF}
+
+
+def _fetch_live_sats_per_xof() -> float:
+    """One live CoinGecko call. Raises on ANY problem; caller falls back."""
+    if not _HTTPX_AVAILABLE:
+        raise RuntimeError("httpx not installed: pip install httpx")
+    resp = httpx.get(COINGECKO_PRICE_URL, timeout=3.0)
+    data = resp.json()
+    price_xof = float(data["bitcoin"]["xof"])
+    if price_xof <= 0:
+        raise ValueError("non-positive BTC/XOF price from CoinGecko")
+    return 1e8 / price_xof
+
+
+def sats_per_xof() -> float:
+    """Current sats-per-XOF rate: live CoinGecko price, cached 5 minutes,
+    DEFAULT_SATS_PER_XOF (1.65) on any failure. Deterministic in tests: the
+    suite stubs httpx.get to fail, so tests always see the 1.65 fallback."""
+    bucket = int(time.time() // FX_CACHE_TTL_SECONDS)
+    if _FX_CACHE.get("bucket") == bucket:
+        return float(_FX_CACHE["rate"])  # type: ignore[arg-type]
+    try:
+        rate = _fetch_live_sats_per_xof()
+    except Exception:
+        rate = DEFAULT_SATS_PER_XOF
+    _FX_CACHE["bucket"] = bucket
+    _FX_CACHE["rate"] = rate
+    return rate
+
+
+def _reset_fx_cache() -> None:
+    """Clear the FX cache (used by the test suite between tests)."""
+    _FX_CACHE["bucket"] = None
+    _FX_CACHE["rate"] = DEFAULT_SATS_PER_XOF
+
+
+def resolve_db_path(db_path: Optional[str] = None) -> str:
+    """SQLite file for invoice/ledger persistence. Explicit path wins, then
+    the CARNETSATS_DB env var, then carnetsats.db next to this module.
+    ':memory:' is honoured as-is (used by throwaway instances)."""
+    if db_path:
+        return str(db_path)
+    env_path = os.getenv("CARNETSATS_DB", "").strip()
+    if env_path:
+        return env_path
+    return str(Path(__file__).parent / "carnetsats.db")
 
 
 # =====================================================================
@@ -99,6 +172,7 @@ PII_PATTERNS = [
     (re.compile(r"\b(0[789][01]\d[\s\-]?\d{3}[\s\-]?\d{4})\b"), "[REDACTED_LOCAL_NG]"),
     (re.compile(r"\b(7[05678][\s\-\.]?\d{3}[\s\-\.]?\d{2}[\s\-\.]?\d{2})\b"), "[REDACTED_LOCAL_SN]"),
     (re.compile(r"secret=[0-9a-fA-F]{16,64}"), "secret=[REDACTED_NWC_SECRET]"),
+    (re.compile(r"nostr\+walletconnect://\S+"), "[REDACTED_NWC_URL]"),
     (re.compile(r"nsec1[0-9a-z]{20,}"), "[REDACTED_NSEC_KEY]"),
     (re.compile(r"PII_NAME:([A-Za-zÀ-ÿ\s\-]+)"), "ALIAS_HASH:[REDACTED_CUSTOMER]"),
 ]
@@ -109,6 +183,31 @@ def sanitize_log(raw_message: str) -> str:
     for pattern, replacement in PII_PATTERNS:
         cleaned = pattern.sub(replacement, cleaned)
     return cleaned
+
+
+PROMPT_INJECTION_PATTERNS = [
+    re.compile(r"ignore\s+(all\s+)?(previous|prior)\s+instructions", re.IGNORECASE),
+    re.compile(r"\b(pay_invoice|multi_pay_invoice|send_payment|drain_wallet|withdraw_all)\b", re.IGNORECASE),
+    re.compile(r"system\s*prompt|override\s+role|owner_signer", re.IGNORECASE),
+]
+
+
+def detect_prompt_injection(text: str) -> Tuple[bool, str]:
+    """Flag and strip adversarial prompt-injection directives from cashier input.
+
+    Returns (flagged, cleaned): flagged is True when any known injection
+    pattern matched; cleaned has each matched directive replaced by
+    "[BLOCKED_INJECTION]". The numbers and item words survive the strip, so
+    the deterministic parser can still compute the sale from the cleaned
+    text — but the adversarial text must never be sent to the AI.
+    """
+    flagged = False
+    cleaned = text
+    for pat in PROMPT_INJECTION_PATTERNS:
+        if pat.search(cleaned):
+            flagged = True
+            cleaned = pat.sub("[BLOCKED_INJECTION]", cleaned)
+    return flagged, cleaned
 
 
 def customer_alias_id(raw_name: str, boutique_salt: str = "dakar-sandaga-v1") -> str:
@@ -176,7 +275,7 @@ class BDKColdVault:
     def evaluate_sweep_policy(
         self, hot_balance_sats: int, threshold_xof: int = HOT_WALLET_SWEEP_THRESHOLD_XOF
     ) -> Dict[str, object]:
-        threshold_sats = int(round(threshold_xof * DEFAULT_SATS_PER_XOF))
+        threshold_sats = int(round(threshold_xof * sats_per_xof()))
         needs_sweep = hot_balance_sats > threshold_sats
         reserve_sats = int(threshold_sats * 0.4)
         sweep_amount_sats = max(0, hot_balance_sats - reserve_sats) if needs_sweep else 0
@@ -260,13 +359,128 @@ ROLE_PERMISSIONS: Dict[str, List[str]] = {
 
 
 class NWCLightningEngine:
-    def __init__(self, initial_balance_sats: int = 95_000, daily_owner_quota_sats: int = 50_000):
+    """
+    NIP-47 wallet engine. Invoices live in SQLite (stdlib sqlite3, no new
+    dependency) at carnetsats.db next to this module by default, or at the
+    CARNETSATS_DB env path, or at an explicit db_path. self.invoices is kept
+    as an in-memory mirror, reloaded from the DB on lookup/settle/list, so a
+    new engine instance on the same DB file sees invoices created before a
+    restart. Balance, daily quota and audit logs stay in-memory by design
+    (out of scope for this persistence step).
+    """
+
+    def __init__(self, initial_balance_sats: int = 95_000, daily_owner_quota_sats: int = 50_000,
+                 db_path: Optional[str] = None, nwc_url: Optional[str] = None):
         self.balance_sats = initial_balance_sats
         self.daily_owner_quota_sats = daily_owner_quota_sats
         self.spent_today_sats = 0
         self.invoices: Dict[str, Dict[str, object]] = {}
         self.audit_logs: List[str] = []
-        self.wallet_pubkey = hashlib.sha256(b"carnetsats-dakar-nwc-service").hexdigest()
+        # Live-wallet mode (v3.7 rev4): a real NWC wallet URL in
+        # CARNETSATS_NWC_URL (or the nwc_url argument) switches make_invoice
+        # / lookup_invoice / settle to the REAL wallet. No URL = demo mode
+        # (local BOLT11, local settle) exactly as before. A configured
+        # wallet that cannot be reached is an ERROR, never a silent
+        # fallback to demo, so a real payment is never faked as paid.
+        # The URL itself (it carries a spend-capable secret) is never
+        # stored in full: only the relay host and wallet pubkey are kept.
+        raw_nwc = nwc_url if nwc_url is not None else os.environ.get("CARNETSATS_NWC_URL")
+        self.nwc_mode = "demo"
+        self.nwc_relay = None
+        self._nwc_client = None
+        if raw_nwc:
+            try:
+                from nwc_client import NWCClient, parse_nwc_url
+                parts = parse_nwc_url(raw_nwc)
+                self._nwc_client = NWCClient(parts["relay"], parts["wallet_pubkey"], parts["secret"])
+                self.nwc_mode = "live"
+                self.nwc_relay = urllib.parse.urlparse(parts["relay"]).netloc or parts["relay"]
+                self.wallet_pubkey = parts["wallet_pubkey"]
+            except Exception:
+                # A malformed NWC URL must not silently become demo mode:
+                # the operator misconfigured a real wallet, so say so loudly.
+                self.nwc_mode = "misconfigured"
+                self.wallet_pubkey = hashlib.sha256(b"carnetsats-dakar-nwc-service").hexdigest()
+                self._log("NWC_CONFIG_ERROR: CARNETSATS_NWC_URL is set but invalid -> live wallet DISABLED")
+        else:
+            self.wallet_pubkey = hashlib.sha256(b"carnetsats-dakar-nwc-service").hexdigest()
+        self.db_path = resolve_db_path(db_path)
+        if self.db_path != ":memory:":
+            Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
+        self._db_lock = threading.Lock()
+        self._conn = sqlite3.connect(self.db_path, check_same_thread=False)
+        self._conn.row_factory = sqlite3.Row
+        self._init_db()
+        self._load_invoices_from_db()
+
+    def _init_db(self) -> None:
+        with self._db_lock:
+            self._conn.execute(
+                "CREATE TABLE IF NOT EXISTS invoices ("
+                " payment_hash TEXT PRIMARY KEY, type TEXT, invoice TEXT,"
+                " description TEXT, preimage TEXT, amount INTEGER,"
+                " amount_sats INTEGER, settled INTEGER, created_at INTEGER,"
+                " settled_at INTEGER, bolt11_decode_ok INTEGER)"
+            )
+            self._conn.commit()
+
+    @staticmethod
+    def _row_to_record(row: sqlite3.Row) -> Dict[str, object]:
+        return {
+            "type": row["type"],
+            "invoice": row["invoice"],
+            "description": row["description"],
+            "payment_hash": row["payment_hash"],
+            "preimage": row["preimage"],
+            "amount": row["amount"],
+            "amount_sats": row["amount_sats"],
+            "settled": bool(row["settled"]),
+            "created_at": row["created_at"],
+            "settled_at": row["settled_at"],
+            "bolt11_decode_ok": bool(row["bolt11_decode_ok"]),
+        }
+
+    def _load_invoices_from_db(self) -> None:
+        """Reload the in-memory mirror from SQLite (startup + read paths)."""
+        with self._db_lock:
+            rows = self._conn.execute("SELECT * FROM invoices").fetchall()
+        self.invoices = {r["payment_hash"]: self._row_to_record(r) for r in rows}
+
+    def _save_invoice(self, record: Dict[str, object]) -> None:
+        """INSERT OR REPLACE one invoice row and update the mirror."""
+        with self._db_lock:
+            self._conn.execute(
+                "INSERT OR REPLACE INTO invoices"
+                " (payment_hash, type, invoice, description, preimage, amount,"
+                "  amount_sats, settled, created_at, settled_at, bolt11_decode_ok)"
+                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (record["payment_hash"], record["type"], record["invoice"],
+                 record["description"], record["preimage"], record["amount"],
+                 record["amount_sats"], int(bool(record["settled"])),
+                 record["created_at"], record["settled_at"],
+                 int(bool(record["bolt11_decode_ok"]))),
+            )
+            self._conn.commit()
+        self.invoices[str(record["payment_hash"])] = record
+
+    def _get_invoice(self, payment_hash: str) -> Optional[Dict[str, object]]:
+        """Read one invoice from SQLite (lookup/settle path)."""
+        with self._db_lock:
+            row = self._conn.execute(
+                "SELECT * FROM invoices WHERE payment_hash = ?", (payment_hash,)
+            ).fetchone()
+        if row is None:
+            return None
+        record = self._row_to_record(row)
+        self.invoices[payment_hash] = record
+        return record
+
+    def close(self) -> None:
+        """Close the SQLite connection (lets a restart test drop the handle)."""
+        try:
+            self._conn.close()
+        except Exception:
+            pass
 
     def _log(self, msg: str) -> None:
         clean_msg = sanitize_log(msg)
@@ -280,7 +494,114 @@ class NWCLightningEngine:
             "content": " ".join(allowed),
             "tags": [["encryption", "nip44_v2 nip04"]],
             "role": role,
+            "mode": self.nwc_mode,
+            "relay": self.nwc_relay,
         }
+
+    def _execute_nwc_live(self, method: str, params: Dict[str, object], role: str) -> Dict[str, object]:
+        """Route one NIP-47 method to the real NWC wallet (live mode only).
+
+        Results are mapped into the same {kind 23195, result_type, error,
+        result} envelope the demo engine returns, so callers (/api/checkout,
+        /api/settle) work unchanged. The wallet's secret never appears in
+        any message here; failures are errors, never a demo fallback.
+        """
+        from nwc_client import NWCError
+        assert self._nwc_client is not None
+        try:
+            if method == "get_info":
+                res = self._nwc_client.request("get_info", {})
+                return {"kind": 23195, "result_type": "get_info", "error": None,
+                        "result": {"alias": res.get("alias", "CarnetSats-NWC"),
+                                   "network": res.get("network", "signet"),
+                                   "methods": res.get("methods", ROLE_PERMISSIONS.get(role, []))}}
+            if method == "get_balance":
+                res = self._nwc_client.request("get_balance", {})
+                balance_msat = int(res.get("balance", 0))
+                self.balance_sats = max(0, balance_msat // 1000)
+                return {"kind": 23195, "result_type": "get_balance", "error": None,
+                        "result": {"balance": balance_msat}}
+            if method == "make_invoice":
+                amount_msat = int(params.get("amount", 0))
+                if amount_msat <= 0:
+                    return {"kind": 23195, "result_type": "make_invoice",
+                            "error": {"code": "INVALID_AMOUNT", "message": "Invoice amount_msat must be > 0"},
+                            "result": None}
+                description = str(params.get("description", "CarnetSats Boutique Purchase"))
+                res = self._nwc_client.request("make_invoice", {"amount": amount_msat, "description": description})
+                invoice = str(res.get("invoice", ""))
+                payment_hash = str(res.get("payment_hash", ""))
+                if not invoice or not payment_hash:
+                    return {"kind": 23195, "result_type": "make_invoice",
+                            "error": {"code": "NWC_BAD_INVOICE",
+                                      "message": "Wallet returned an invoice without payment_hash"},
+                            "result": None}
+                amount_sats = max(1, amount_msat // 1000)
+                decode_check = _decode_bolt11_or_none(invoice)
+                record = {
+                    "type": "incoming",
+                    "invoice": invoice,
+                    "description": sanitize_log(description),
+                    "payment_hash": payment_hash,
+                    "preimage": None,
+                    "amount": amount_msat,
+                    "amount_sats": amount_sats,
+                    "settled": False,
+                    "created_at": int(time.time()),
+                    "settled_at": None,
+                    "bolt11_decode_ok": decode_check is not None,
+                }
+                self._save_invoice(record)
+                return {"kind": 23195, "result_type": "make_invoice", "error": None,
+                        "result": {"type": "incoming", "invoice": invoice,
+                                   "description": record["description"],
+                                   "payment_hash": payment_hash, "amount": amount_msat,
+                                   "created_at": record["created_at"],
+                                   "bolt11_decode_ok": record["bolt11_decode_ok"]}}
+            if method == "lookup_invoice":
+                ph = str(params.get("payment_hash", ""))
+                res = self._nwc_client.request("lookup_invoice", {"payment_hash": ph})
+                settled = bool(res.get("settled"))
+                preimage = res.get("preimage")
+                # Mirror the wallet's answer into the local record so the
+                # ledger stays consistent if the server restarts mid-sale.
+                inv = self._get_invoice(ph)
+                if inv and settled and not inv["settled"]:
+                    inv["settled"] = True
+                    inv["settled_at"] = res.get("settled_at") or int(time.time())
+                    if preimage:
+                        inv["preimage"] = str(preimage)
+                    self._save_invoice(inv)
+                return {"kind": 23195, "result_type": "lookup_invoice", "error": None,
+                        "result": {"type": "incoming",
+                                   "invoice": res.get("invoice") or (inv["invoice"] if inv else ""),
+                                   "payment_hash": ph,
+                                   "preimage": preimage if settled else None,
+                                   "amount": res.get("amount") or (inv["amount"] if inv else 0),
+                                   "settled": settled,
+                                   "settled_at": res.get("settled_at")}}
+            if method == "pay_invoice":
+                invoice = str(params.get("invoice", ""))
+                if not invoice:
+                    return {"kind": 23195, "result_type": "pay_invoice",
+                            "error": {"code": "INVALID_INVOICE",
+                                      "message": "pay_invoice needs a BOLT11 invoice string"},
+                            "result": None}
+                res = self._nwc_client.request("pay_invoice", {"invoice": invoice})
+                amount_sats = int(params.get("amount_sats", 0) or 0)
+                self.spent_today_sats += amount_sats
+                return {"kind": 23195, "result_type": "pay_invoice", "error": None,
+                        "result": {"preimage": res.get("preimage"), "amount_paid_sats": amount_sats}}
+        except Exception as exc:  # noqa: BLE001 - wallet failure is an error, not a demo fallback
+            code = "NWC_UNAVAILABLE" if isinstance(exc, NWCError) else "NWC_ERROR"
+            self._log(f"NWC live request {method} failed -> {code}")
+            return {"kind": 23195, "result_type": method,
+                    "error": {"code": code,
+                              "message": f"Real wallet unreachable: {sanitize_log(str(exc))}"},
+                    "result": None}
+        return {"kind": 23195, "result_type": method,
+                "error": {"code": "NOT_IMPLEMENTED", "message": f"Method {method} not implemented"},
+                "result": None}
 
     def execute_nip47_request(self, method: str, params: Dict[str, object], role: str = "clerk_ai") -> Dict[str, object]:
         known = {"get_info", "get_balance", "make_invoice", "lookup_invoice", "list_transactions", "pay_invoice"}
@@ -299,6 +620,17 @@ class NWCLightningEngine:
                               "message": f"Role '{role}' is cryptographically restricted from calling '{method}'."},
                     "result": None}
 
+        # Live-wallet mode (v3.7 rev4): route the wallet methods to the real
+        # NWC wallet. A misconfigured URL or an unreachable wallet is an
+        # error, never a silent demo fallback.
+        if self.nwc_mode == "misconfigured":
+            return {"kind": 23195, "result_type": method,
+                    "error": {"code": "NWC_CONFIG_ERROR",
+                              "message": "CARNETSATS_NWC_URL is set but invalid; fix .env, do not trade in demo mode."},
+                    "result": None}
+        if self.nwc_mode == "live" and method in {"get_info", "get_balance", "make_invoice", "lookup_invoice", "pay_invoice"}:
+            return self._execute_nwc_live(method, params, role)
+
         if method == "get_info":
             return {"kind": 23195, "result_type": "get_info", "error": None,
                     "result": {"alias": "CarnetSats-Dakar-NWC", "network": "signet", "methods": allowed}}
@@ -308,6 +640,7 @@ class NWCLightningEngine:
                     "result": {"balance": self.balance_sats * 1000}}
 
         if method == "list_transactions":
+            self._load_invoices_from_db()
             return {"kind": 23195, "result_type": "list_transactions", "error": None,
                     "result": {"transactions": list(self.invoices.values())}}
 
@@ -339,7 +672,7 @@ class NWCLightningEngine:
                 "settled_at": None,
                 "bolt11_decode_ok": decode_check is not None,
             }
-            self.invoices[payment_hash] = record
+            self._save_invoice(record)
             return {"kind": 23195, "result_type": "make_invoice", "error": None,
                     "result": {"type": "incoming", "invoice": bolt11,
                                "description": record["description"],
@@ -349,7 +682,7 @@ class NWCLightningEngine:
 
         if method == "lookup_invoice":
             ph = str(params.get("payment_hash", ""))
-            inv = self.invoices.get(ph)
+            inv = self._get_invoice(ph)
             if not inv:
                 return {"kind": 23195, "result_type": "lookup_invoice",
                         "error": {"code": "NOT_FOUND", "message": "Invoice payment_hash not found"},
@@ -387,7 +720,38 @@ class NWCLightningEngine:
                 "error": {"code": "NOT_IMPLEMENTED", "message": f"Method {method} not implemented"}, "result": None}
 
     def settle_incoming_invoice(self, payment_hash: str) -> Dict[str, object]:
-        inv = self.invoices.get(payment_hash)
+        # Live-wallet mode (v3.7 rev4): settlement is a real lookup against
+        # the wallet. Unpaid = ValueError (the API turns it into 400 and
+        # the frontend shows PENDING); it is NEVER auto-marked paid.
+        if self.nwc_mode == "live":
+            resp = self.execute_nip47_request("lookup_invoice", {"payment_hash": payment_hash}, role="clerk_ai")
+            if resp.get("error"):
+                raise ValueError(f"Wallet lookup failed: {resp['error'].get('message', resp['error'].get('code'))}")
+            res = resp["result"] or {}
+            if not res.get("settled"):
+                raise ValueError("Invoice not settled yet — customer has not paid")
+            preimage = res.get("preimage")
+            if not preimage:
+                raise ValueError("Wallet reports settled but gave no preimage")
+            computed_hash = hashlib.sha256(bytes.fromhex(str(preimage))).hexdigest()
+            if computed_hash != payment_hash:
+                raise ValueError("Cryptographic preimage mismatch!")
+            inv = self._get_invoice(payment_hash)
+            if inv and not inv["settled"]:
+                inv["settled"] = True
+                inv["settled_at"] = res.get("settled_at") or int(time.time())
+                inv["preimage"] = str(preimage)
+                self._save_invoice(inv)
+                self._log(f"SETTLED (live NWC) invoice payment_hash={payment_hash[:16]}...")
+            # Balance is the real wallet's balance now, not the demo counter.
+            bal = self.execute_nip47_request("get_balance", {}, role="clerk_ai")
+            if not bal.get("error"):
+                self.balance_sats = max(0, int(bal["result"]["balance"]) // 1000)
+            return {"settled": True, "payment_hash": payment_hash, "preimage": str(preimage),
+                    "verified_sha256": True, "new_balance_sats": self.balance_sats}
+        if self.nwc_mode == "misconfigured":
+            raise ValueError("NWC wallet misconfigured (CARNETSATS_NWC_URL invalid); fix .env")
+        inv = self._get_invoice(payment_hash)
         if not inv:
             raise ValueError("Unknown payment_hash")
         preimage_bytes = bytes.fromhex(str(inv["preimage"]))
@@ -398,6 +762,7 @@ class NWCLightningEngine:
             inv["settled"] = True
             inv["settled_at"] = int(time.time())
             self.balance_sats += int(inv["amount_sats"])
+            self._save_invoice(inv)
             self._log(f"SETTLED invoice payment_hash={payment_hash[:16]}... (+{inv['amount_sats']} sats)")
         return {"settled": True, "payment_hash": payment_hash, "preimage": inv["preimage"],
                 "verified_sha256": computed_hash == payment_hash, "new_balance_sats": self.balance_sats}
@@ -567,6 +932,48 @@ def _nip44_decrypt_payload(payload: str, conversation_key: bytes) -> str:
     return _nip44_unpad(padded)
 
 
+# Worker for publish_event_to_relay: runs the pynostr RelayManager in a
+# subprocess (same isolation as the relay round-trip test: tornado must
+# not share the FastAPI event loop). Reads {"relay_url", "event"} on
+# stdin, prints one JSON line: {"ok", "received_id", "error", "elapsed_s"}.
+_RELAY_PUBLISH_WORKER_CODE = r"""
+import json, sys, time
+t0 = time.time()
+result = {"ok": False, "received_id": None, "error": None}
+try:
+    job = json.load(sys.stdin)
+    relay_url = job["relay_url"]
+    ev = job["event"]
+    from pynostr.event import Event
+    from pynostr.filters import Filters, FiltersList
+    from pynostr.relay_manager import RelayManager
+    event = Event.from_dict({k: ev[k] for k in
+                             ("id", "pubkey", "created_at", "kind",
+                              "tags", "content", "sig")})
+    rm = RelayManager(timeout=20)
+    rm.add_relay(relay_url, timeout=20)
+    rm.publish_event(event)
+    rm.add_subscription_on_all_relays(
+        "carnetsats-publish-%s" % ev["id"][:8],
+        FiltersList([Filters(ids=[ev["id"]])]))
+    rm.run_sync()
+    pool = rm.message_pool.get_all()
+    for msg in pool["events"]:
+        if msg.event.id == ev["id"]:
+            result["received_id"] = msg.event.id
+            break
+    result["ok"] = result["received_id"] == ev["id"]
+    if not result["ok"]:
+        result["error"] = (
+            "published event not received back (events=%d ok=%d eose=%d)"
+            % (len(pool["events"]), len(pool["ok"]), len(pool["eose"])))
+except Exception as exc:
+    result["error"] = "%s: %s" % (type(exc).__name__, exc)
+result["elapsed_s"] = round(time.time() - t0, 1)
+print(json.dumps(result))
+"""
+
+
 # =====================================================================
 # 6. NOSTR CREDIT LEDGER — REAL NIP-44 + REAL SCHNORR SIG
 # =====================================================================
@@ -575,13 +982,29 @@ class NostrCreditLedger:
     Publishes NIP-78 Kind 30078 events with real NIP-44 v2 ciphertext
     (ChaCha20 + HMAC-SHA256, implemented from the NIP-44 spec above)
     and valid BIP-340 Schnorr signatures (pynostr). Public relays accept these events.
+
+    Events are persisted in the same SQLite file as the wallet invoices
+    (table nostr_events, same CARNETSATS_DB / db_path resolution). self.events
+    is the in-memory mirror, loaded from the DB at startup and appended to
+    on every new event, so a new ledger instance on the same DB file sees
+    events created before a restart.
     """
 
-    def __init__(self, merchant_privkey_hex: Optional[str] = None):
+    def __init__(self, merchant_privkey_hex: Optional[str] = None,
+                 db_path: Optional[str] = None):
         if not PYnostr_AVAILABLE:
             raise RuntimeError("pynostr not installed: pip install pynostr")
-        if merchant_privkey_hex:
-            self._merchant_priv = PrivateKey.from_hex(merchant_privkey_hex)
+        # Merchant key (v3.7 rev4): a real key from CARNETSATS_MERCHANT_KEY
+        # (64 hex chars, set in .env by run.sh on first start) replaces the
+        # fixed demo secret. Invalid or absent = demo key, labelled as such.
+        env_key = os.environ.get("CARNETSATS_MERCHANT_KEY", "")
+        self.key_source = "demo"
+        chosen_key = merchant_privkey_hex
+        if not chosen_key and len(env_key) == 64 and all(c in "0123456789abcdefABCDEF" for c in env_key):
+            chosen_key = env_key.lower()
+            self.key_source = "env"
+        if chosen_key:
+            self._merchant_priv = PrivateKey.from_hex(chosen_key)
         else:
             self._merchant_priv = PrivateKey.from_hex(
                 hashlib.sha256(b"boutique-touba-dakar-secret").hexdigest()
@@ -591,6 +1014,83 @@ class NostrCreditLedger:
         # For NIP-44 we use the merchant as both sender and recipient (self-DM envelope)
         self._recipient_pub = self._merchant_priv.public_key.hex()
         self.events: List[Dict[str, object]] = []
+        self.db_path = resolve_db_path(db_path)
+        if self.db_path != ":memory:":
+            Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
+        self._db_lock = threading.Lock()
+        self._conn = sqlite3.connect(self.db_path, check_same_thread=False)
+        self._conn.row_factory = sqlite3.Row
+        self._init_db()
+        self._load_events_from_db()
+
+    def _init_db(self) -> None:
+        with self._db_lock:
+            self._conn.execute(
+                "CREATE TABLE IF NOT EXISTS nostr_events ("
+                " id TEXT PRIMARY KEY, pubkey TEXT, created_at INTEGER,"
+                " kind INTEGER, tags TEXT, content TEXT, sig TEXT,"
+                " decrypted_preview TEXT, nip44_spec TEXT)"
+            )
+            # v3.7 rev4: record which relays accepted each event.
+            try:
+                self._conn.execute("ALTER TABLE nostr_events ADD COLUMN published_to TEXT DEFAULT '[]'")
+            except Exception:
+                pass  # column already exists on newer DBs
+            self._conn.commit()
+
+    @staticmethod
+    def _row_to_event(row: sqlite3.Row) -> Dict[str, object]:
+        published = []
+        if "published_to" in row.keys() and row["published_to"]:
+            try:
+                published = json.loads(row["published_to"])
+            except ValueError:
+                published = []
+        return {
+            "id": row["id"],
+            "pubkey": row["pubkey"],
+            "created_at": row["created_at"],
+            "kind": row["kind"],
+            "tags": json.loads(row["tags"]),
+            "content": row["content"],
+            "sig": row["sig"],
+            "decrypted_preview": json.loads(row["decrypted_preview"]),
+            "nip44_spec": row["nip44_spec"],
+            "published_to": published,
+        }
+
+    def _load_events_from_db(self) -> None:
+        """Reload the in-memory mirror from SQLite (startup)."""
+        with self._db_lock:
+            rows = self._conn.execute(
+                "SELECT * FROM nostr_events ORDER BY created_at"
+            ).fetchall()
+        self.events = [self._row_to_event(r) for r in rows]
+
+    def _save_event(self, stored: Dict[str, object]) -> None:
+        """INSERT OR REPLACE one event row and update the mirror."""
+        with self._db_lock:
+            self._conn.execute(
+                "INSERT OR REPLACE INTO nostr_events"
+                " (id, pubkey, created_at, kind, tags, content, sig,"
+                "  decrypted_preview, nip44_spec, published_to)"
+                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (stored["id"], stored["pubkey"], stored["created_at"],
+                 stored["kind"], json.dumps(stored["tags"], ensure_ascii=False),
+                 stored["content"], stored["sig"],
+                 json.dumps(stored["decrypted_preview"], ensure_ascii=False),
+                 stored["nip44_spec"],
+                 json.dumps(stored.get("published_to", []), ensure_ascii=False)),
+            )
+            self._conn.commit()
+        self.events.append(stored)
+
+    def close(self) -> None:
+        """Close the SQLite connection."""
+        try:
+            self._conn.close()
+        except Exception:
+            pass
 
     def _nip44_encrypt(self, plaintext: str) -> str:
         """Real NIP-44 v2 encryption (ChaCha20 + HMAC-SHA256, spec implementation above)."""
@@ -622,8 +1122,9 @@ class NostrCreditLedger:
             "total_xof": total_xof,
             "paid_now_xof": paid_now_xof,
             "debt_remaining_xof": debt_remaining_xof,
-            "debt_remaining_sats": int(round(debt_remaining_xof * DEFAULT_SATS_PER_XOF)),
+            "debt_remaining_sats": int(round(debt_remaining_xof * sats_per_xof())),
             "lightning_payment_hash": payment_hash,
+            "status": "SETTLED_TAB" if debt_remaining_xof == 0 else "OPEN_TAB",
             "timestamp": created_at,
         }
         # Real NIP-44 v2 ciphertext (base64 output from pynostr)
@@ -655,9 +1156,33 @@ class NostrCreditLedger:
             "sig": event.sig,
             "decrypted_preview": cleartext,
             "nip44_spec": "NIP-44 v2 (ChaCha20 + HMAC-SHA256 + base64)",
+            "published_to": [],
         }
-        self.events.append(stored)
+        self._save_event(stored)
         return stored
+
+    def repay_credit_tab(self, event_id: str, repayment_payment_hash: str) -> Dict[str, object]:
+        """Publish a NIP-78 replacement Kind 30078 event that settles a tab.
+
+        The replacement carries the EXACT SAME "d" tag
+        (carnetsats:tab:client_<hash>) as the original, so relays treat it
+        as the newer state of the same parameterized replaceable event,
+        with debt_remaining_xof = 0 and status SETTLED_TAB. It goes through
+        create_signed_credit_event, so it gets a fresh signature and is
+        saved to SQLite like any other event.
+        """
+        target = next((ev for ev in self.events if ev["id"] == event_id), None)
+        if not target:
+            raise ValueError("Original credit event not found")
+        prev = dict(target.get("decrypted_preview") or {})
+        return self.create_signed_credit_event(
+            customer_name=str(prev.get("customer_display", "Client")),
+            items=list(prev.get("items", ["Remboursement Carnet"])),
+            total_xof=int(prev.get("total_xof", 0)),
+            paid_now_xof=int(prev.get("total_xof", 0)),
+            debt_remaining_xof=0,
+            payment_hash=repayment_payment_hash,
+        )
 
     def verify_event_signature(self, event: Dict[str, object]) -> bool:
         """Verify a stored event's BIP-340 Schnorr signature using pynostr."""
@@ -676,6 +1201,73 @@ class NostrCreditLedger:
         plaintext = self._nip44_decrypt(ciphertext)
         return json.loads(plaintext)
 
+    def publish_event_to_relay(self, event: Dict[str, object], relay_url: Optional[str] = None,
+                               timeout: float = 60.0) -> Dict[str, object]:
+        """Publish one stored event to a public relay and verify receipt.
+
+        Relay URL defaults to CARNETSATS_RELAY_URL or wss://relay.damus.io.
+        Returns {"ok": bool, "relay": url, "error": ...}. Never raises:
+        publishing is best-effort, the sale itself never depends on it.
+        """
+        relay = relay_url or os.environ.get("CARNETSATS_RELAY_URL", "wss://relay.damus.io")
+        try:
+            import subprocess
+            proc = subprocess.run(
+                [sys.executable, "-c", _RELAY_PUBLISH_WORKER_CODE],
+                input=json.dumps({"relay_url": relay, "event": {k: event[k] for k in
+                                  ("id", "pubkey", "created_at", "kind", "tags", "content", "sig")}}),
+                capture_output=True, text=True, timeout=timeout,
+            )
+            out = (proc.stdout or "").strip().splitlines()
+            payload = json.loads(out[-1]) if out else {"ok": False, "error": "publish worker produced no output"}
+        except Exception as exc:  # noqa: BLE001 - publish is best-effort
+            payload = {"ok": False, "error": "%s: %s" % (type(exc).__name__, exc)}
+        return {"ok": bool(payload.get("ok")), "relay": relay, "error": payload.get("error")}
+
+    def publish_event_async(self, event: Dict[str, object]) -> None:
+        """Best-effort background publish after checkout/repay.
+
+        Never blocks the sale. Disabled with CARNETSATS_RELAY_PUBLISH=0.
+        The outcome is recorded on the event (persisted in SQLite) so the
+        UI can show it and the operator can retry via the API.
+        """
+        if os.environ.get("CARNETSATS_RELAY_PUBLISH", "1") == "0":
+            return
+
+        def _run():
+            try:
+                res = self.publish_event_to_relay(event)
+                self._record_publish(event["id"], res)
+            except Exception:
+                pass
+
+        threading.Thread(target=_run, daemon=True).start()
+
+    def _record_publish(self, event_id: str, res: Dict[str, object]) -> None:
+        """Persist a publish attempt's outcome onto the stored event."""
+        with self._db_lock:
+            row = self._conn.execute(
+                "SELECT published_to FROM nostr_events WHERE id = ?", (event_id,)).fetchone()
+            published = []
+            if row and row[0]:
+                try:
+                    published = json.loads(row[0])
+                except ValueError:
+                    published = []
+            if res.get("ok") and res.get("relay") not in published:
+                published.append(res["relay"])
+            self._conn.execute(
+                "UPDATE nostr_events SET published_to = ? WHERE id = ?",
+                (json.dumps(published), event_id),
+            )
+            self._conn.commit()
+        for ev in self.events:
+            if ev["id"] == event_id:
+                ev["published_to"] = published
+                if not res.get("ok"):
+                    ev["publish_error"] = str(res.get("error", ""))[:200]
+                break
+
 
 # =====================================================================
 # 7. DETERMINISTIC AI CASHIER
@@ -689,14 +1281,18 @@ class ParsedCarnetEntry(BaseModel):
     credit_owed_xof: int = Field(description="Remaining unpaid tab (credit/IOU) in FCFA (XOF)")
     upfront_sats: int = Field(description="Upfront Lightning invoice amount in Satoshis")
     credit_owed_sats: int = Field(description="Remaining Nostr credit tab in Satoshis")
+    prompt_injection_blocked: bool = Field(default=False, description="True if adversarial instructions were stripped from the input")
     confidence_note: str = Field(description="Audit explanation of the deterministic calculation")
 
 
 def parse_boutique_entry(text: str, use_gemini: bool = True) -> ParsedCarnetEntry:
-    clean_text = text.strip()
+    # Prompt-injection guard FIRST: adversarial text must never reach the AI.
+    # If flagged, Gemini is skipped entirely and the deterministic fallback
+    # below parses the cleaned text instead.
+    injection_flagged, clean_text = detect_prompt_injection(text.strip())
 
     api_key = os.getenv("GEMINI_API_KEY", "").strip()
-    if use_gemini and GENAI_AVAILABLE and api_key:
+    if use_gemini and GENAI_AVAILABLE and api_key and not injection_flagged:
         try:
             client = genai.Client(api_key=api_key)
             prompt = (
@@ -716,8 +1312,10 @@ def parse_boutique_entry(text: str, use_gemini: bool = True) -> ParsedCarnetEntr
             if resp.text:
                 parsed = ParsedCarnetEntry.model_validate_json(resp.text)
                 parsed.credit_owed_xof = max(0, parsed.total_amount_xof - parsed.paid_upfront_xof)
-                parsed.upfront_sats = max(1, int(round(parsed.paid_upfront_xof * DEFAULT_SATS_PER_XOF)))
-                parsed.credit_owed_sats = int(round(parsed.credit_owed_xof * DEFAULT_SATS_PER_XOF))
+                parsed.prompt_injection_blocked = injection_flagged
+                rate = sats_per_xof()
+                parsed.upfront_sats = max(1, int(round(parsed.paid_upfront_xof * rate)))
+                parsed.credit_owed_sats = int(round(parsed.credit_owed_xof * rate))
                 return parsed
         except Exception:
             pass
@@ -765,8 +1363,9 @@ def parse_boutique_entry(text: str, use_gemini: bool = True) -> ParsedCarnetEntr
     if not found_items:
         found_items = ["Panier marchandises Boutique (Articles divers)"]
 
-    upfront_sats = max(1, int(round(paid_xof * DEFAULT_SATS_PER_XOF))) if paid_xof > 0 else 0
-    credit_sats = int(round(credit_xof * DEFAULT_SATS_PER_XOF))
+    rate = sats_per_xof()
+    upfront_sats = max(1, int(round(paid_xof * rate))) if paid_xof > 0 else 0
+    credit_sats = int(round(credit_xof * rate))
 
     return ParsedCarnetEntry(
         customer_name=customer_name,
@@ -777,6 +1376,7 @@ def parse_boutique_entry(text: str, use_gemini: bool = True) -> ParsedCarnetEntr
         credit_owed_xof=credit_xof,
         upfront_sats=upfront_sats,
         credit_owed_sats=credit_sats,
+        prompt_injection_blocked=injection_flagged,
         confidence_note=(
             f"Deterministic schema verification: {total_xof} XOF total = "
             f"{paid_xof} XOF Lightning upfront ({upfront_sats} sats) + "

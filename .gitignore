@@ -3,3 +3,9 @@ __pycache__/
 *.pyc
 bundle.txt
 extract_carnetsats_safe.py
+.pytest_cache/
+.hypothesis/
+.env
+*.db
+*.zip
+carnetsats-*.txt
