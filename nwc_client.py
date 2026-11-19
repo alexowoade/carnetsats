@@ -115,6 +115,7 @@ try:
         "kinds": [23195],
         "authors": [wallet_pubkey],
         "#p": [client_pub],
+        "#e": [req_event.id],
     }
     ws = websocket.create_connection(relay_url, timeout=timeout)
     try:
@@ -135,6 +136,12 @@ try:
             if msg[0] == "EVENT" and msg[1] == sub_id:
                 ev = msg[2]
                 if ev.get("kind") != 23195:
+                    continue
+                # Only accept the reply to THIS request. The relay also sends
+                # stored replies to older requests; taking the first one
+                # returns the previous sale's invoice.
+                ev_tags = ev.get("tags") or []
+                if not any(isinstance(t, list) and len(t) > 1 and t[0] == "e" and t[1] == req_event.id for t in ev_tags):
                     continue
                 try:
                     dm2 = EncryptedDirectMessage()
