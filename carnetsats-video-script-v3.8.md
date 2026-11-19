@@ -5,7 +5,7 @@ Deadline: Fri 20 Nov 2026, 21:00 CET (Dakar Bitcoin Hack by BTrust).
 
 ## Scene 1 (0:00 – 0:25) | The Problem
 
-"Hello everyone! Across Dakar and West Africa, neighborhood shopkeepers sell daily staples on split payments: a customer pays part upfront and puts the rest in a paper credit notebook. Paper notebooks get lost or disputed, and leaving an unlocked Bitcoin wallet on a shop counter risks unauthorized drains. This is **CarnetSats v3.8**: a voice and text point-of-sale on Lightning and Nostr."
+"Hello everyone! Across Dakar and West Africa, neighborhood shopkeepers sell daily staples on split payments: a customer pays part upfront and puts the rest in a paper credit notebook. Paper notebooks get lost or disputed, and leaving an unlocked Bitcoin wallet on a shop counter risks unauthorized drains. Shopkeepers fear a hacker, a prompt injection, or a stolen phone emptying their day's sales. CarnetSats is strictly receive-only: `pay_invoice` is blocked in code and never granted in Alby Hub, so payments flow one way into the owner's hub — and only the owner moves funds inside Alby Hub. This is **CarnetSats v3.8**: a voice and text point-of-sale on Lightning and Nostr."
 
 ## Scene 2 (0:25 – 1:10) | Trilingual Cashier, Live FX & Scannable BOLT11 Invoice
 
@@ -23,7 +23,7 @@ Stage directions: Click `🔎 Schnorr/NIP-44` on the top row of Panel 2, then cl
 
 Stage directions: Click `🛡️ pay_invoice Attack → RESTRICTED`, then click `🏦 Sweep to BIP-84 Vault`.
 
-"For Security by Design, the counter's `clerk_ai` role is restricted to read and invoice methods. Simulating a `pay_invoice` drain attack is blocked with `RESTRICTED` while redacting phone numbers and secrets from logs. Above 50,000 CFA, our BIP-84 engine derives a watch-only Signet cold address (`tb1q...`) from the shop's `vpub`."
+"For Security by Design, the counter's `clerk_ai` role is restricted to read and invoice methods. Simulating a `pay_invoice` drain attack is blocked with `RESTRICTED` while redacting phone numbers and secrets from logs. The counter is receive-only by design: clerks and attackers cannot drain funds, and only the owner moves money inside Alby Hub. Above 50,000 CFA, our BIP-84 engine derives a watch-only Signet cold address (`tb1q...`) from the shop's `vpub`."
 
 ## Scene 5 (2:15 – 2:40) | 235 Automated Tests, Live Relay Proof & Honest Scope
 

@@ -227,7 +227,7 @@
           <span id="lbl-sec-title">4. Security-by-Design & BIP-84 Vault</span>
         </div>
         <p style="font-size:0.83rem;color:var(--muted);margin-bottom:10px;" id="lbl-sec-text">
-          Test an attack: the shop's NWC key blocks <code>pay_invoice</code> at the protocol layer.
+          Test an attack: the shop's NWC key blocks <code>pay_invoice</code> at the protocol layer. Receive-only counter: clerks and attackers cannot drain funds; only the owner moves money in Alby Hub.
         </p>
         <div class="action-row">
           <button class="btn btn-danger" onclick="simulateDrainAttack()" id="btn-attack">🛡️ pay_invoice Attack → RESTRICTED</button>
@@ -315,7 +315,7 @@ const I18N = {
     btnWhatsApp:"📲 Reçu WhatsApp", btnAudit:"🔎 Schnorr/NIP-44", btnRepay:"💳 Solder", pillSettled:"SOLDÉ",
     waTitle:"⚡ *Reçu CarnetSats — Boutique Touba (Dakar)*", waCustomer:"Client:", waItems:"Articles:", waPaid:"Payé Lightning:", waDebt:"Reste Carnet Nostr (NIP-44):", waHash:"Preuve Hash:",
     secTitle:"4. Sécurité dès la Conception & Coffre BIP-84",
-    secText:"Testez une attaque : la clé NWC de la caisse bloque <code>pay_invoice</code> au niveau protocolaire.",
+    secText:"Testez une attaque : la clé NWC de la caisse bloque <code>pay_invoice</code> au niveau protocolaire. Caisse en réception seule : ni les commis ni les attaquants ne peuvent vider les fonds ; seul le propriétaire déplace l'argent dans Alby Hub.",
     btnAttack:"🛡️ Attaque pay_invoice → RESTREINT",
     btnSweep:"🏦 Balayer vers Coffre BIP-84",
     badgeWaiting:"EN ATTENTE", badgePaid:"PAYÉ & VÉRIFIÉ", badgePaidStatic:"PAYÉ (STATIC DEMO)",
@@ -377,7 +377,7 @@ const I18N = {
     btnWhatsApp:"📲 Xibaar WhatsApp", btnAudit:"🔎 Schnorr/NIP-44", btnRepay:"💳 Fayal", pillSettled:"FAY NA",
     waTitle:"⚡ *CarnetSats — Boutique Touba (Dakar)*", waCustomer:"Jëndkat:", waItems:"Jëf yi:", waPaid:"Fay na Lightning:", waDebt:"Des ci Carnet Nostr (NIP-44):", waHash:"Seede Hash:",
     secTitle:"4. Sàmmu ci Jëfandikoo & Kofar BIP-84",
-    secText:"Jéemaal: Këy NWC bu botika bi dafa téye <code>pay_invoice</code>.",
+    secText:"Jéemaal: Këy NWC bu botika bi dafa téye <code>pay_invoice</code>. Boroom bi rekk mën a jëfandikoo xaalis ci Alby Hub.",
     btnAttack:"🛡️ Jéemaal pay_invoice → TÉYE",
     btnSweep:"🏦 Yóbbe ci Kofar BIP-84",
     badgeWaiting:"XAAR", badgePaid:"FAY NA & WÓORAL NA", badgePaidStatic:"FAY NA (STATIC DEMO)",
@@ -439,7 +439,7 @@ const I18N = {
     btnWhatsApp:"📲 WhatsApp Receipt", btnAudit:"🔎 Schnorr/NIP-44", btnRepay:"💳 Repay", pillSettled:"PAID OFF",
     waTitle:"⚡ *CarnetSats Receipt — Boutique Touba (Dakar)*", waCustomer:"Customer:", waItems:"Items:", waPaid:"Paid Lightning:", waDebt:"Credit (Nostr NIP-44):", waHash:"Proof Hash:",
     secTitle:"4. Security-by-Design & BIP-84 Vault",
-    secText:"Test an attack: the shop's NWC key blocks <code>pay_invoice</code> at the protocol layer.",
+    secText:"Test an attack: the shop's NWC key blocks <code>pay_invoice</code> at the protocol layer. Receive-only counter: clerks and attackers cannot drain funds; only the owner moves money in Alby Hub.",
     btnAttack:"🛡️ pay_invoice Attack → RESTRICTED",
     btnSweep:"🏦 Sweep to BIP-84 Vault",
     badgeWaiting:"PENDING", badgePaid:"PAID & VERIFIED", badgePaidStatic:"PAID (STATIC DEMO)",

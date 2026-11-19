@@ -52,6 +52,8 @@ flowchart LR
 
 ```
 
+> **Why Receive-Only?** The counter app collects payments and tracks encrypted tabs, while **only the owner moves money inside Alby Hub**—keeping spending keys and sweep execution completely off the counter device. That is why the cold sweep is policy-only and tab repayment is ledger-only: the till is a one-way deposit chute, not a wallet.
+
 ---
 
 ## Usefulness, Social Impact & Pilot Plan

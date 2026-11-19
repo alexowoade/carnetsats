@@ -3,10 +3,11 @@
 Talks to a REAL Lightning wallet over Nostr Wallet Connect:
 
 * ``parse_nwc_url`` parses a ``nostr+walletconnect://`` URL into its
-  relay URL, wallet pubkey and client secret. The secret is a spend-capable
-  credential: it is NEVER logged, NEVER returned by any API, and MUST live
-  only in ``.env`` (``CARNETSATS_NWC_URL``), never in git, never in chat,
-  never in a video frame.
+  relay URL, wallet pubkey and client secret. The secret is a receive-only
+  credential in the CarnetSats deployment (the NWC connection must not
+  grant ``pay_invoice``): it is NEVER logged, NEVER returned by any API,
+  and MUST live only in ``.env`` (``CARNETSATS_NWC_URL``), never in git,
+  never in chat, never in a video frame.
 * ``NWCClient.request`` sends one NIP-47 request (kind 23194, NIP-04
   encrypted — the transport every NWC wallet supports) to the wallet's
   relay and waits for the kind 23195 response. The websocket work runs in
