@@ -1,5 +1,5 @@
 """
-CarnetSats Core Engine v3.7.0 — Dakar Bitcoin Hack by BTrust
+CarnetSats Core Engine v3.8.0 — Dakar Bitcoin Hack by BTrust
 Real-primitive implementation:
 1. NIP-47 (NWC) Least-Privilege Wallet Engine with real BOLT11 encoding (pyln-client / bolt11 spec)
 2. Real BIP-84 wpkh derivation (bip-utils) for Signet cold vault
@@ -81,12 +81,11 @@ try:
 except Exception:
     _CHACHA_AVAILABLE = False
 
-try:
-    from google import genai
-    from google.genai import types
-    GENAI_AVAILABLE = True
-except Exception:
-    GENAI_AVAILABLE = False
+# Groq (OpenAI-compatible chat completions) is the AI provider for the
+# boutique parser. Free tier: 1,000 requests/day on openai/gpt-oss-120b.
+# No key, or any API failure, falls back to the deterministic parser below.
+GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
+GROQ_MODEL = "openai/gpt-oss-120b"
 
 try:
     import httpx
@@ -1285,40 +1284,69 @@ class ParsedCarnetEntry(BaseModel):
     confidence_note: str = Field(description="Audit explanation of the deterministic calculation")
 
 
-def parse_boutique_entry(text: str, use_gemini: bool = True) -> ParsedCarnetEntry:
+def _call_groq_json(prompt: str) -> Optional[dict]:
+    """POST a JSON-mode chat completion to Groq; return the parsed dict or None.
+
+    Returns None when no GROQ_API_KEY is set, httpx is missing, the API
+    answers with a non-200 status, or the reply is not valid JSON. The
+    caller treats None as "use the deterministic parser".
+    """
+    api_key = os.getenv("GROQ_API_KEY", "").strip()
+    if not api_key or not _HTTPX_AVAILABLE:
+        return None
+    try:
+        resp = httpx.post(
+            GROQ_API_URL,
+            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            json={
+                "model": GROQ_MODEL,
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": "You are a precise data extractor. Return JSON only, matching the requested schema. No extra text.",
+                    },
+                    {"role": "user", "content": prompt},
+                ],
+                "temperature": 0.0,
+                "response_format": {"type": "json_object"},
+            },
+            timeout=20.0,
+        )
+        if resp.status_code != 200:
+            return None
+        content = resp.json()["choices"][0]["message"]["content"]
+        data = json.loads(content)
+        return data if isinstance(data, dict) else None
+    except Exception:
+        return None
+
+
+def parse_boutique_entry(text: str, use_ai: bool = True) -> ParsedCarnetEntry:
     # Prompt-injection guard FIRST: adversarial text must never reach the AI.
-    # If flagged, Gemini is skipped entirely and the deterministic fallback
+    # If flagged, Groq is skipped entirely and the deterministic fallback
     # below parses the cleaned text instead.
     injection_flagged, clean_text = detect_prompt_injection(text.strip())
 
-    api_key = os.getenv("GEMINI_API_KEY", "").strip()
-    if use_gemini and GENAI_AVAILABLE and api_key and not injection_flagged:
-        try:
-            client = genai.Client(api_key=api_key)
-            prompt = (
-                "Extract the West African boutique transaction from the merchant's voice/text note. "
-                "Convert all numbers to integers in XOF (FCFA). Ensure credit_owed_xof = total_amount_xof - paid_upfront_xof.\n"
-                f"Input: {clean_text}"
-            )
-            resp = client.models.generate_content(
-                model="gemini-3.6-flash",
-                contents=prompt,
-                config=types.GenerateContentConfig(
-                    response_mime_type="application/json",
-                    response_schema=ParsedCarnetEntry,
-                    temperature=0.0,
-                ),
-            )
-            if resp.text:
-                parsed = ParsedCarnetEntry.model_validate_json(resp.text)
+    if use_ai and not injection_flagged:
+        data = _call_groq_json(
+            "Extract the West African boutique transaction from the merchant's voice/text note. "
+            "Convert all numbers to integers in XOF (FCFA). Ensure credit_owed_xof = total_amount_xof - paid_upfront_xof. "
+            "Return JSON only with exactly these fields: customer_name (string), language_detected (one of fr, wo, en), "
+            "items (array of strings), total_amount_xof (integer), paid_upfront_xof (integer), credit_owed_xof (integer), "
+            "upfront_sats (integer), credit_owed_sats (integer), confidence_note (string).\n"
+            f"Input: {clean_text}"
+        )
+        if data is not None:
+            try:
+                parsed = ParsedCarnetEntry.model_validate(data)
                 parsed.credit_owed_xof = max(0, parsed.total_amount_xof - parsed.paid_upfront_xof)
                 parsed.prompt_injection_blocked = injection_flagged
                 rate = sats_per_xof()
                 parsed.upfront_sats = max(1, int(round(parsed.paid_upfront_xof * rate)))
                 parsed.credit_owed_sats = int(round(parsed.credit_owed_xof * rate))
                 return parsed
-        except Exception:
-            pass
+            except Exception:
+                pass
 
     lower = clean_text.lower()
     if any(w in lower for w in ["ceeb", "diwlin", "suukar", "fay", "desal", "ameel", "ñaar", "mburu", "meew", "jël"]):

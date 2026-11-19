@@ -29,7 +29,7 @@ It does not describe a production system.
 - **Prompt-injection firewall.** `detect_prompt_injection()` flags and
   strips adversarial directives (`ignore previous instructions`,
   `pay_invoice`, `drain_wallet`, `owner_signer`) before sale text ever
-  reaches Gemini; flagged input falls back to the deterministic parser
+  reaches Groq; flagged input falls back to the deterministic parser
   and never calls the AI (`test_19c`).
 - **No authentication or rate limiting.** `app.py` exposes every
   endpoint without auth, and CORS is `allow_origins=["*"]`. Anyone
@@ -49,7 +49,7 @@ It does not describe a production system.
 | BIP-84 vault vpub (watch-only, demo) | `BDKColdVault.DEFAULT_TPUB`, replaceable via `CARNETSATS_VPUB` |
 | BOLT11 signing key (demo) | `_make_bolt11_signet()`, `sha256(b"carnetsats-demo-bolt11-signing-key")` |
 | Customer credit tabs (NIP-44 ciphertext + cleartext preview) | `NostrCreditLedger.events` (SQLite `nostr_events` table + in-memory list) |
-| Gemini API key (optional) | `GEMINI_API_KEY` env var only, never in code |
+| Groq API key (optional) | `GROQ_API_KEY` env var only, never in code |
 
 ## STRIDE threat model
 
@@ -98,7 +98,7 @@ It does not describe a production system.
 | NWC wallet secret (spend-capable) | `CARNETSATS_NWC_URL` in `.env` | Testnet wallet only for the demo; never commit `.env`, never log the URL, never show it on screen or in a video. The engine redacts it from logs and never returns it from any API. |
 | BIP-84 demo vpub | `BDKColdVault.DEFAULT_TPUB` | The boutique's own vpub from a hardware signer, via `CARNETSATS_VPUB` |
 | Alias salt `"dakar-sandaga-v1"` | `customer_alias_id()` | Random per-boutique salt stored server-side, not in source |
-| Gemini API key | `GEMINI_API_KEY` env var | Scoped key in the deployment's secret store; the deterministic parser already runs without it |
+| Groq API key | `GROQ_API_KEY` env var | Scoped key in the deployment's secret store; the deterministic parser already runs without it |
 
 ## What this document deliberately does NOT claim
 

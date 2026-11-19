@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 echo "================================================================"
-echo "⚡ CarnetSats v3.7 — Dakar Bitcoin Hack by BTrust"
+echo "⚡ CarnetSats v3.8 — Dakar Bitcoin Hack by BTrust"
 echo "================================================================"
 if [ ! -d ".venv" ]; then
   python3 -m venv .venv
@@ -11,7 +11,7 @@ source .venv/bin/activate
 # websocket-client (rev4) is installed on the next start, not only when
 # the venv is first created.
 pip install -q -r requirements.txt
-# Secrets (v3.7 rev4): .env holds CARNETSATS_NWC_URL / CARNETSATS_MERCHANT_KEY
+# Secrets (v3.8): .env holds CARNETSATS_NWC_URL / CARNETSATS_MERCHANT_KEY
 # / CARNETSATS_VPUB. It is gitignored and never printed. On first start,
 # create it with a fresh merchant signing key (64 hex chars) so Nostr
 # credit events are no longer signed with the fixed demo secret. An

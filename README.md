@@ -53,7 +53,7 @@ Or with Docker:
 
 ```bash
 docker compose up --build
-# env: GEMINI_API_KEY (optional, deterministic parser if unset)
+# env: GROQ_API_KEY (optional, deterministic parser if unset)
 #      CARNETSATS_VPUB (optional, demo vpub if unset or empty)
 #      CARNETSATS_NWC_URL (optional, testnet wallet; demo mode if unset)
 #      CARNETSATS_MERCHANT_KEY (optional, generated into .env by run.sh)
