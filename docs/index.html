@@ -1283,7 +1283,9 @@ window.onload = async () => {
     else applyTheme('light');
   } catch (_) {}
   await detectBackend();
-  processSale();
+  // No auto-checkout on load: the till waits for the clerk to type a sale
+  // and press Parse (or a preset). A live checkout on every page load opened
+  // a fresh NWC WebSocket each time and got the relay rate-limited (429).
 };
 </script>
 </body>
