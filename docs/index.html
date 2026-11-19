@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -111,7 +111,7 @@
   </div>
   <div class="lang-bar">
     <span id="mode-badge" class="mode-badge mode-static">MODE: STATIC</span>
-    <button class="btn" onclick="toggleTheme()" id="btn-theme">☀️ Daylight</button>
+    <button class="btn" onclick="toggleTheme()" id="btn-theme">🌙 Dark</button>
     <button class="btn active" onclick="setLang('en')" id="lang-en">🇬🇧 EN</button>
     <button class="btn" onclick="setLang('fr')" id="lang-fr">🇫🇷 FR</button>
     <button class="btn" onclick="setLang('wo')" id="lang-wo">🇸🇳 WO</button>
@@ -256,7 +256,7 @@
 <script>
 const SATS_PER_XOF = 1.65;
 let currentLang = 'en';
-let currentTheme = 'dark';
+let currentTheme = 'light';
 let showEncryptedRelay = false;
 let balanceSats = 95000;
 let currentInvoice = null;
@@ -1279,7 +1279,8 @@ function renderLedger() {
 window.onload = async () => {
   try {
     const saved = localStorage.getItem('carnetsats_theme');
-    if (saved === 'light') applyTheme('light');
+    if (saved === 'dark') applyTheme('dark');
+    else applyTheme('light');
   } catch (_) {}
   await detectBackend();
   processSale();
