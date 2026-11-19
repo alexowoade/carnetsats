@@ -37,10 +37,10 @@ merchant key are all derived from fixed public demo strings. Swap them
 for real keys in production. The vpub is watch-only, no funds can be
 spent from it.
 
-## Live Hosted MVP (AWS EC2 — always on)
+## Live Hosted MVP
 
 - **Live App (`MODE: LIVE FASTAPI`):** https://carnetsats.duckdns.org
-- Always on: AWS EC2 (t3.micro, Ubuntu 24.04) + Caddy HTTPS + live Mutinynet Alby Hub + credit records published to wss://nos.lol.
+- Hosted on AWS EC2 (t3.micro, Ubuntu 24.04) + Caddy HTTPS + live Mutinynet Alby Hub + credit records published to wss://nos.lol.
 - Python 3.12 (`PYTHON_VERSION=3.12.0`; coincurve does not build on Python 3.13).
 
 ## Quickstart
@@ -79,8 +79,7 @@ With a testnet NWC wallet URL in `.env` (`CARNETSATS_NWC_URL`, see
 Without `CARNETSATS_NWC_URL` the app runs in demo mode exactly as
 before (local BOLT11, local settle, `MODE: LIVE FASTAPI`). Still
 simulated even in live mode: the sweep is a policy recommendation only
-(no PSBT/broadcast — that needs a real node), the static GitHub Pages
-fallback is an openly labelled demo, and tab repayment is ledger-only
+(no PSBT/broadcast — that needs a real node), and tab repayment is ledger-only
 (no Lightning payment is made for a tab settlement).
 
 ## API
@@ -102,16 +101,6 @@ The sweep button is a **policy viewer only**: it shows the recommended
 amount and vault destination. It does not move funds and does not change
 the displayed balance. Production wires a BDK PSBT builder.
 
-## Static fallback (GitHub Pages)
-
-`docs/index.html` also runs without a backend. In that mode everything
-is labelled `[STATIC]`, the QR is a deterministic pseudo-matrix (not a
-real QR code) captioned `[STATIC DEMO QR - run ./run.sh for real
-BOLT11]`, and the BOLT11 / NIP-44 data shown is a static demo envelope.
-With the live backend (`MODE: LIVE FASTAPI`, local or the live EC2 host) the QR is a
-real scannable ISO/IEC 18004 QR code for the real BOLT11 invoice.
-Run `./run.sh` for the real backend.
-
 ## Files
 
 - `carnetsats_engine.py` — NIP-47, BIP-84, NIP-44 v2, Schnorr, parser, PII redactor
@@ -120,5 +109,5 @@ Run `./run.sh` for the real backend.
 - `test_carnetsats.py` — 235 deterministic tests
 - `test_15_nostr_relay_roundtrip.py` — live relay round-trip (skipped offline)
 - `test_23_nwc_live.py` — live NWC wallet round-trip (skipped without CARNETSATS_NWC_URL)
-- `docs/index.html` — frontend (live backend or static fallback)
+- `docs/index.html` — frontend
 - `requirements.txt`, `run.sh`, `Dockerfile`, `docker-compose.yml`
