@@ -1,9 +1,9 @@
-# SECURITY.md — CarnetSats Threat Model (v3.7.0)
+# SECURITY.md — CarnetSats Threat Model (v3.8.1)
 
 CarnetSats is a voice/text point-of-sale for a Dakar boutique: a clerk
 speaks or types a sale, the cashier parses it, a Lightning BOLT11 invoice
 is issued, and any unpaid balance goes on a Nostr credit ledger. This
-document models threats against the code as it actually is in v3.7.0.
+document models threats against the code as it actually is in v3.8.1.
 It does not describe a production system.
 
 ## Status and scope — read first
@@ -15,17 +15,20 @@ It does not describe a production system.
   and the Nostr merchant key are all derived from fixed public demo
   strings in `carnetsats_engine.py` (see "Demo keys" below). Anyone
   who reads the source can re-derive them.
-- **Simulated wallet, not a live node.** `NWCLightningEngine` is an
-  in-process simulation of NIP-47: no real NWC relay connection, no
-  real Lightning node, no real channel balance. Its permission checks
-  are real Python logic, but they run in the same process as the
-  caller.
-- **No relay publishing yet in normal operation.** `NostrCreditLedger` builds, encrypts,
-  and signs events, and stores them in SQLite (`nostr_events` table in
-  `carnetsats.db`) as well as the in-memory list `self.events`. A live
-  relay round-trip test (`test_15_nostr_relay_roundtrip.py`) publishes
-  to `wss://relay.damus.io`, but the app itself does not publish to a
-  relay in normal operation.
+- **Live receive-only NWC wallet on Mutinynet.** When
+  `CARNETSATS_NWC_URL` is set, `NWCLightningEngine` talks to a real
+  Alby Hub node over NIP-47 (kind 23194/23195, NIP-44 v2): real
+  `make_invoice`, real `lookup_invoice`, real `get_balance`. The
+  connection is receive-only: `pay_invoice` is not granted to the
+  app, so the till can never spend. Without the URL the app runs in
+  demo mode with a simulated in-process wallet.
+- **Relay publishing in normal operation.** Since rev4
+  `NostrCreditLedger` publishes every credit event to a public relay
+  in the background after checkout/repay (`CARNETSATS_RELAY_URL`,
+  deployed to `wss://nos.lol`; code default `wss://relay.damus.io`).
+  Events are also stored in SQLite (`nostr_events` table in
+  `carnetsats.db`) and in the in-memory list `self.events`, and
+  `GET /api/nostr-events` shows `published_to` for each event.
 - **Prompt-injection firewall.** `detect_prompt_injection()` flags and
   strips adversarial directives (`ignore previous instructions`,
   `pay_invoice`, `drain_wallet`, `owner_signer`) before sale text ever

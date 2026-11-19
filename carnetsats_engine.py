@@ -1,5 +1,5 @@
 """
-CarnetSats Core Engine v3.8.0 — Dakar Bitcoin Hack by BTrust
+CarnetSats Core Engine v3.8.1 — Dakar Bitcoin Hack by BTrust
 Real-primitive implementation:
 1. NIP-47 (NWC) Least-Privilege Wallet Engine with real BOLT11 encoding (pyln-client / bolt11 spec)
 2. Real BIP-84 wpkh derivation (bip-utils) for Signet cold vault

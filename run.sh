@@ -24,7 +24,7 @@ set -a
 # shellcheck disable=SC1091
 . ./.env
 set +a
-echo "[1/2] Running the 233 deterministic protocol/security tests (live relay test skipped offline)..."
+echo "[1/2] Running the 235 deterministic protocol/security tests (live relay test skipped offline)..."
 # The live relay round-trip test (test_15_nostr_relay_roundtrip.py) needs a
 # public relay and is NOT deterministic offline, so it is skipped by default.
 # Run it explicitly with SKIP_RELAY_TESTS=0 on a machine with direct internet.

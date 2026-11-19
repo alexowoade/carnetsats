@@ -5,27 +5,42 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>CarnetSats — Boutique POS on Lightning & Nostr (Dakar)</title>
   <style>
-    :root { --bg:#0b0f17; --card:#131b2e; --card-border:#23314f; --accent:#f7931a;
-      --accent-green:#10b981; --accent-red:#ef4444; --accent-blue:#38bdf8;
-      --text:#f8fafc; --muted:#94a3b8; }
+    :root { --bg:#0b0f17; --surface:#090d16; --surface-alt:#0b111e; --mono-bg:#070a10;
+      --header-bg:linear-gradient(90deg,#0f172a 0%,#1e293b 100%);
+      --card:#131b2e; --card-border:#23314f; --btn-bg:#1e293b; --row-border:#1e293b;
+      --accent:#f7931a; --accent-green:#10b981; --accent-red:#ef4444; --accent-blue:#38bdf8;
+      --text:#f8fafc; --mono-text:#cbd5e1; --muted:#94a3b8;
+      --danger-bg:rgba(239,68,68,0.16); --danger-text:#fca5a5;
+      --alert-ok-bg:rgba(16,185,129,0.1); --alert-ok-text:#a7f3d0;
+      --alert-err-bg:rgba(239,68,68,0.12); --alert-err-text:#fecaca; }
+    [data-theme="light"] {
+      --bg:#f1f5f9; --surface:#ffffff; --surface-alt:#f8fafc; --mono-bg:#f8fafc;
+      --header-bg:linear-gradient(90deg,#ffffff 0%,#e2e8f0 100%);
+      --card:#ffffff; --card-border:#cbd5e1; --btn-bg:#f1f5f9; --row-border:#e2e8f0;
+      --accent:#d97706; --accent-green:#059669; --accent-red:#dc2626; --accent-blue:#0284c7;
+      --text:#0f172a; --mono-text:#1e293b; --muted:#475569;
+      --danger-bg:rgba(220,38,38,0.1); --danger-text:#991b1b;
+      --alert-ok-bg:rgba(5,150,105,0.1); --alert-ok-text:#065f46;
+      --alert-err-bg:rgba(220,38,38,0.1); --alert-err-text:#991b1b; }
     * { box-sizing:border-box; margin:0; padding:0; font-family:system-ui,-apple-system,sans-serif; }
-    body { background:var(--bg); color:var(--text); line-height:1.5; padding-bottom:60px; }
-    header { background:linear-gradient(90deg,#0f172a 0%,#1e293b 100%);
+    body { background:var(--bg); color:var(--text); line-height:1.5; padding-bottom:60px; transition:background 0.15s ease,color 0.15s ease; }
+    header { background:var(--header-bg);
       border-bottom:1px solid var(--card-border); padding:14px 20px;
       display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:12px; }
     .brand { display:flex; align-items:center; gap:12px; }
     .logo-badge { background:var(--accent); color:#000; font-weight:800; padding:6px 11px;
       border-radius:8px; font-size:1.05rem; }
     .subtitle { font-size:0.82rem; color:var(--muted); }
-    .lang-bar { display:flex; gap:6px; align-items:center; }
-    .btn { background:#1e293b; color:var(--text); border:1px solid var(--card-border);
+    .lang-bar { display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
+    .btn { background:var(--btn-bg); color:var(--text); border:1px solid var(--card-border);
       padding:8px 13px; border-radius:8px; cursor:pointer; font-weight:600; font-size:0.85rem;
       transition:all 0.15s ease; }
-    .btn:hover { border-color:var(--accent); }
+    .btn:hover:not(:disabled) { border-color:var(--accent); }
+    .btn:disabled { opacity:0.65; cursor:wait; }
     .btn.active { background:var(--accent); color:#000; border-color:var(--accent); }
     .btn-primary { background:var(--accent); color:#000; border-color:var(--accent); font-weight:700; }
     .btn-success { background:var(--accent-green); color:#052e16; border-color:var(--accent-green); font-weight:700; }
-    .btn-danger { background:rgba(239,68,68,0.16); color:#fca5a5; border-color:var(--accent-red); }
+    .btn-danger { background:var(--danger-bg); color:var(--danger-text); border-color:var(--accent-red); }
     .container { max-width:1180px; margin:20px auto; padding:0 16px; }
     .kpi-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr));
       gap:14px; margin-bottom:20px; }
@@ -42,28 +57,44 @@
     .badge { font-size:0.72rem; padding:3px 8px; border-radius:99px;
       background:rgba(247,147,26,0.16); color:var(--accent); font-family:monospace; }
     .preset-chips { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px; }
-    textarea { width:100%; background:#090d16; color:var(--text); border:1px solid var(--card-border);
+    textarea { width:100%; background:var(--surface); color:var(--text); border:1px solid var(--card-border);
       border-radius:8px; padding:12px; font-size:0.95rem; resize:vertical; min-height:76px; }
     .action-row { display:flex; flex-wrap:wrap; gap:10px; margin-top:12px; }
-    .split-box { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:14px;
-      background:#0b111e; padding:12px; border-radius:10px; border:1px solid var(--card-border); }
+    .split-box { margin-top:14px; background:var(--surface-alt); padding:12px; border-radius:10px;
+      border:1px solid var(--card-border); }
+    .split-cols { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    .split-bar { height:8px; border-radius:99px; overflow:hidden; display:flex;
+      background:var(--card-border); margin-top:10px; }
+    .split-bar-paid { background:var(--accent-green); height:100%; transition:width 0.25s ease; }
+    .split-bar-debt { background:var(--accent); height:100%; transition:width 0.25s ease; }
+    .poll-hint { font-size:0.76rem; color:var(--muted); margin-top:6px; min-height:18px; }
     .qr-box { background:#fff; padding:12px; border-radius:10px; width:170px; height:170px;
-      margin:10px auto; display:flex; align-items:center; justify-content:center; }
-    .mono-box { background:#070a10; border:1px solid #1e293b; border-radius:8px; padding:10px;
-      font-family:monospace; font-size:0.76rem; color:#cbd5e1; word-break:break-all;
+      margin:10px auto; display:flex; align-items:center; justify-content:center;
+      border:1px solid var(--card-border); }
+    .mono-box { background:var(--mono-bg); border:1px solid var(--card-border); border-radius:8px; padding:10px;
+      font-family:monospace; font-size:0.76rem; color:var(--mono-text); word-break:break-all;
       max-height:150px; overflow-y:auto; margin-top:8px; }
-    table { width:100%; border-collapse:collapse; font-size:0.86rem; margin-top:8px; }
-    th, td { text-align:left; padding:9px 8px; border-bottom:1px solid #1e293b; }
+    table { width:100%; border-collapse:collapse; font-size:0.86rem; margin-top:8px; min-width:520px; }
+    th, td { text-align:left; padding:9px 8px; border-bottom:1px solid var(--row-border); }
+    .table-scroll { overflow-x:auto; }
     th { color:var(--muted); font-size:0.76rem; text-transform:uppercase; }
     .status-pill { padding:2px 8px; border-radius:6px; font-size:0.74rem; font-weight:600; }
-    .pill-paid { background:rgba(16,185,129,0.2); color:#34d399; }
-    .pill-credit { background:rgba(247,147,26,0.2); color:#fbbf24; }
+    .pill-paid { background:rgba(16,185,129,0.2); color:var(--accent-green); }
+    .pill-credit { background:rgba(247,147,26,0.2); color:var(--accent); }
     .alert-banner { padding:11px 14px; border-radius:8px; margin-top:10px; font-size:0.84rem;
-      border:1px solid var(--accent-green); background:rgba(16,185,129,0.1); color:#a7f3d0; }
-    .alert-danger { border-color:var(--accent-red); background:rgba(239,68,68,0.12); color:#fecaca; }
+      border:1px solid var(--accent-green); background:var(--alert-ok-bg); color:var(--alert-ok-text); }
+    .alert-danger { border-color:var(--accent-red); background:var(--alert-err-bg); color:var(--alert-err-text); }
     .mode-badge { font-size:0.7rem; padding:2px 8px; border-radius:6px; font-weight:700; }
-    .mode-live { background:rgba(16,185,129,0.2); color:#34d399; }
-    .mode-static { background:rgba(56,189,248,0.2); color:#38bdf8; }
+    .mode-live { background:rgba(16,185,129,0.2); color:var(--accent-green); }
+    .mode-static { background:rgba(56,189,248,0.2); color:var(--accent-blue); }
+    /* Customer-facing fullscreen QR modal (hides merchant balance & neighbor tabs) */
+    .modal-backdrop { position:fixed; inset:0; background:rgba(2,6,23,0.88);
+      display:none; align-items:center; justify-content:center; padding:16px; z-index:999; }
+    .modal-card { background:#ffffff; color:#0f172a; border-radius:16px; max-width:390px;
+      width:100%; padding:24px 20px; text-align:center; box-shadow:0 24px 60px rgba(0,0,0,0.45); }
+    .modal-qr { background:#fff; padding:10px; border-radius:12px; width:256px; height:256px;
+      margin:14px auto; display:flex; align-items:center; justify-content:center;
+      border:2px solid #e2e8f0; }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
 </head>
@@ -72,7 +103,7 @@
 <header>
   <div class="brand">
     <span class="logo-badge">⚡ CarnetSats</span>
-    <span class="mode-badge mode-live" id="version-badge" title="CarnetSats version">v3.8.0</span>
+    <span class="mode-badge mode-live" id="version-badge" title="CarnetSats version">v3.8.1</span>
     <div>
       <div style="font-weight:700;">Boutique Touba — Marché Sandaga, Dakar</div>
       <div class="subtitle" id="ui-tagline">AI Voice POS • Scoped NWC (NIP-47) • Nostr Book (NIP-44) • BIP-84 Vault</div>
@@ -80,6 +111,7 @@
   </div>
   <div class="lang-bar">
     <span id="mode-badge" class="mode-badge mode-static">MODE: STATIC</span>
+    <button class="btn" onclick="toggleTheme()" id="btn-theme">☀️ Daylight</button>
     <button class="btn active" onclick="setLang('en')" id="lang-en">🇬🇧 EN</button>
     <button class="btn" onclick="setLang('fr')" id="lang-fr">🇫🇷 FR</button>
     <button class="btn" onclick="setLang('wo')" id="lang-wo">🇸🇳 WO</button>
@@ -127,7 +159,9 @@
         <div class="action-row">
           <button class="btn btn-primary" onclick="processSale()" id="btn-generate">⚡ Parse & Generate Split Invoice</button>
         </div>
+        <div id="checkout-error" class="alert-banner alert-danger" style="display:none;"></div>
         <div class="split-box" id="parsed-summary">
+          <div class="split-cols">
           <div>
             <div style="font-size:0.78rem;color:var(--muted);" id="lbl-upfront">PAY UPFRONT (LIGHTNING)</div>
             <div style="font-size:1.35rem;font-weight:800;color:var(--accent-green);" id="out-paid-xof">9 000 FCFA</div>
@@ -138,6 +172,11 @@
             <div style="font-size:1.35rem;font-weight:800;color:var(--accent);" id="out-debt-xof">6 000 FCFA</div>
             <div style="font-size:0.82rem;font-family:monospace;color:var(--muted);" id="out-debt-sats">9,900 Sats</div>
           </div>
+          </div>
+          <div class="split-bar" aria-label="Payment split ratio">
+            <div class="split-bar-paid" id="split-bar-paid" style="width:60%;"></div>
+            <div class="split-bar-debt" id="split-bar-debt" style="width:40%;"></div>
+          </div>
         </div>
       </div>
 
@@ -146,12 +185,14 @@
           <span id="lbl-ledger-title">2. Tamper-Proof Credit Book (Nostr NIP-44)</span>
           <button class="btn" onclick="toggleRelayView()" id="btn-toggle-relay">🔍 Relay Payload</button>
         </div>
+        <div class="table-scroll">
         <table>
           <thead>
             <tr><th id="th-alias">Alias</th><th id="th-items">Items</th><th id="th-paid">Paid</th><th id="th-due">Balance Due</th><th id="th-hash">LN Hash</th></tr>
           </thead>
           <tbody id="ledger-tbody"></tbody>
         </table>
+        </div>
         <div class="mono-box" id="nostr-raw-box" style="display:none;"></div>
       </div>
     </div>
@@ -164,10 +205,13 @@
         </div>
         <div class="qr-box" id="qr-container"></div>
         <div style="font-size:0.85rem;font-weight:700;margin-top:6px;" id="qr-caption">—</div>
+        <div class="poll-hint" id="poll-hint"></div>
         <div class="mono-box" id="bolt11-box">—</div>
         <div class="action-row" style="justify-content:center;">
           <button class="btn btn-success" onclick="settleCurrentInvoice()" id="btn-settle">✅ Simulate Tap (Verify SHA-256)</button>
-          <button id="webln-btn" style="display:none">⚡ Payer avec Alby/WebLN</button>
+          <button class="btn btn-primary" id="webln-btn" style="display:none">⚡ Pay with Alby/WebLN</button>
+          <button class="btn" onclick="copyCurrentInvoice()" id="btn-copy-invoice">📋 Copy Invoice</button>
+          <button class="btn" onclick="openCustomerModal()" id="btn-customer-qr">⛶ Show Customer</button>
           <button class="btn" onclick="shareWhatsAppReceipt()" id="btn-whatsapp">📲 WhatsApp Receipt</button>
         </div>
         <div id="settlement-banner" class="alert-banner" style="display:none;text-align:left;"></div>
@@ -185,8 +229,26 @@
           <button class="btn" onclick="triggerBDKSweep()" id="btn-sweep">🏦 Sweep to BIP-84 Vault</button>
         </div>
         <div id="security-alert" class="alert-banner alert-danger" style="display:none;"></div>
-        <div class="mono-box" id="audit-log-box">[AUDIT] Prêt.</div>
+        <div class="mono-box" id="audit-log-box">[AUDIT] Ready.</div>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- Customer-facing fullscreen QR modal -->
+<div class="modal-backdrop" id="customer-qr-modal" onclick="if(event.target===this) closeCustomerModal();">
+  <div class="modal-card">
+    <div style="font-weight:800;font-size:1.15rem;">⚡ Boutique Touba — Dakar</div>
+    <div style="font-size:0.82rem;color:#475569;margin-top:2px;" id="modal-subtitle">Scan with any Lightning wallet (Mutinynet)</div>
+    <div style="font-size:1.65rem;font-weight:800;margin-top:12px;color:#0f172a;" id="modal-amount-xof">—</div>
+    <div style="font-size:0.9rem;font-family:monospace;color:#d97706;font-weight:700;" id="modal-amount-sats">—</div>
+    <div class="modal-qr" id="modal-qr-container"></div>
+    <div style="margin:8px 0 14px;">
+      <span class="status-pill pill-credit" id="modal-status-badge" style="font-size:0.86rem;padding:4px 12px;">PENDING</span>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+      <button class="btn" style="background:#f1f5f9;color:#0f172a;border-color:#cbd5e1;" onclick="copyCurrentInvoice()" id="modal-copy-btn">📋 Copy Invoice</button>
+      <button class="btn btn-primary" onclick="closeCustomerModal()" id="modal-close-btn">✕ Close</button>
     </div>
   </div>
 </div>
@@ -194,12 +256,29 @@
 <script>
 const SATS_PER_XOF = 1.65;
 let currentLang = 'en';
+let currentTheme = 'dark';
 let showEncryptedRelay = false;
 let balanceSats = 95000;
 let currentInvoice = null;
 let backendMode = false;
+let nwcMode = 'demo';
+let pollTimer = null;
+let pollCount = 0;
 
 function T(key) { return I18N[currentLang][key]; }
+
+function applyTheme(theme) {
+  currentTheme = theme === 'light' ? 'light' : 'dark';
+  if (currentTheme === 'light') document.documentElement.setAttribute('data-theme', 'light');
+  else document.documentElement.removeAttribute('data-theme');
+  const btn = document.getElementById('btn-theme');
+  if (btn) btn.textContent = currentTheme === 'light' ? T('btnThemeNight') : T('btnThemeDay');
+  try { localStorage.setItem('carnetsats_theme', currentTheme); } catch (_) {}
+}
+
+function toggleTheme() {
+  applyTheme(currentTheme === 'light' ? 'dark' : 'light');
+}
 
 const I18N = {
   fr: { tagline:"Caisse Vocale IA • NWC (NIP-47) • Carnet Nostr (NIP-44) • Coffre BIP-84",
@@ -208,6 +287,17 @@ const I18N = {
     kpiVaultThreshold:"Seuil: 50 000 FCFA",
     posTitle:"1. Note Vocale ou Ticket (FR / Wolof / EN)",
     btnGenerate:"⚡ Extraire & Générer Code",
+    btnLoading:"⏳ Traitement...",
+    btnWebLN:"⚡ Payer avec Alby/WebLN",
+    btnCopyInvoice:"📋 Copier Facture",
+    btnCopied:"✓ Copiée !",
+    btnShowCustomer:"⛶ Écran Client",
+    btnClose:"✕ Fermer",
+    modalSubtitle:"Scannez avec un portefeuille Lightning (Mutinynet)",
+    btnThemeDay:"☀️ Jour",
+    btnThemeNight:"🌙 Nuit",
+    autoPollNote:"🔄 Surveillance automatique du paiement Mutinynet...",
+    btnChecking:"⏳ Vérification...",
     btnMicro:"🎤 Micro",
     badgeDeterministic:"Groq + Déterministe",
     upfront:"À ENCAISSER (LIGHTNING)", credit:"CARNET (DETTE NOSTR)",
@@ -216,7 +306,9 @@ const I18N = {
     btnRelay:"🔍 Données du relais",
     qrTitle:"3. Encaissement BOLT11 / NWC",
     btnSettle:"✅ Simuler Paiement (Vérifier SHA-256)",
+    btnSettleLive:"✅ Vérifier le Paiement (SHA-256)",
     btnWhatsApp:"📲 Reçu WhatsApp", btnAudit:"🔎 Schnorr/NIP-44", btnRepay:"💳 Solder", pillSettled:"SOLDÉ",
+    waTitle:"⚡ *Reçu CarnetSats — Boutique Touba (Dakar)*", waCustomer:"Client:", waItems:"Articles:", waPaid:"Payé Lightning:", waDebt:"Reste Carnet Nostr (NIP-44):", waHash:"Preuve Hash:",
     secTitle:"4. Sécurité dès la Conception & Coffre BIP-84",
     secText:"Testez une attaque : la clé NWC de la caisse bloque <code>pay_invoice</code> au niveau protocolaire.",
     btnAttack:"🛡️ Attaque pay_invoice → RESTREINT",
@@ -257,6 +349,17 @@ const I18N = {
     kpiVaultThreshold:"Diggante: 50 000 FCFA",
     posTitle:"1. Waxal walla Bindal li Jëndkat bi Jël",
     btnGenerate:"⚡ Génne Faktir bi ak Karné bi",
+    btnLoading:"⏳ Jëf ci...",
+    btnWebLN:"⚡ Fayal ci Alby/WebLN",
+    btnCopyInvoice:"📋 Kopye Faktir",
+    btnCopied:"✓ Kopye na!",
+    btnShowCustomer:"⛶ Wone Jëndkat",
+    btnClose:"✕ Tëj",
+    modalSubtitle:"Skaneel ak sa portefeuille Lightning (Mutinynet)",
+    btnThemeDay:"☀️ Bëccëg",
+    btnThemeNight:"🌙 Guddi",
+    autoPollNote:"🔄 Mi ngi xaar fay bi ci Mutinynet...",
+    btnChecking:"⏳ Mi ngi wóoral...",
     btnMicro:"🎤 Wax",
     badgeDeterministic:"Groq + luñu Xam",
     upfront:"LI MU FAY LÉEGI (LIGHTNING)", credit:"LI DES CI KARNÉ BI",
@@ -265,7 +368,9 @@ const I18N = {
     btnRelay:"🔍 Gis Mbind ci Sarwiis",
     qrTitle:"3. Fayum Gaaw ci QR Code (BOLT11)",
     btnSettle:"✅ Jëndkat bi Fay na (Wóoral SHA-256)",
+    btnSettleLive:"✅ Xoolal Fay bi (Wóoral SHA-256)",
     btnWhatsApp:"📲 Xibaar WhatsApp", btnAudit:"🔎 Schnorr/NIP-44", btnRepay:"💳 Fayal", pillSettled:"FAY NA",
+    waTitle:"⚡ *CarnetSats — Boutique Touba (Dakar)*", waCustomer:"Jëndkat:", waItems:"Jëf yi:", waPaid:"Fay na Lightning:", waDebt:"Des ci Carnet Nostr (NIP-44):", waHash:"Seede Hash:",
     secTitle:"4. Sàmmu ci Jëfandikoo & Kofar BIP-84",
     secText:"Jéemaal: Këy NWC bu botika bi dafa téye <code>pay_invoice</code>.",
     btnAttack:"🛡️ Jéemaal pay_invoice → TÉYE",
@@ -306,6 +411,17 @@ const I18N = {
     kpiVaultThreshold:"Threshold: 50,000 FCFA",
     posTitle:"1. Voice Note or Receipt (FR / Wolof / EN)",
     btnGenerate:"⚡ Parse & Generate Split Invoice",
+    btnLoading:"⏳ Processing...",
+    btnWebLN:"⚡ Pay with Alby/WebLN",
+    btnCopyInvoice:"📋 Copy Invoice",
+    btnCopied:"✓ Copied!",
+    btnShowCustomer:"⛶ Show Customer",
+    btnClose:"✕ Close",
+    modalSubtitle:"Scan with any Lightning wallet (Mutinynet)",
+    btnThemeDay:"☀️ Daylight",
+    btnThemeNight:"🌙 Dark",
+    autoPollNote:"🔄 Listening for live Mutinynet payment...",
+    btnChecking:"⏳ Checking wallet...",
     btnMicro:"🎤 Mic",
     badgeDeterministic:"Groq + Deterministic",
     upfront:"PAY UPFRONT (LIGHTNING)", credit:"NOSTR TAB (IOU)",
@@ -314,7 +430,9 @@ const I18N = {
     btnRelay:"🔍 Relay Payload",
     qrTitle:"3. Instant Settlement (BOLT11 / NWC)",
     btnSettle:"✅ Simulate Tap (Verify SHA-256)",
+    btnSettleLive:"✅ Check Payment (Verify SHA-256)",
     btnWhatsApp:"📲 WhatsApp Receipt", btnAudit:"🔎 Schnorr/NIP-44", btnRepay:"💳 Repay", pillSettled:"PAID OFF",
+    waTitle:"⚡ *CarnetSats Receipt — Boutique Touba (Dakar)*", waCustomer:"Customer:", waItems:"Items:", waPaid:"Paid Lightning:", waDebt:"Credit (Nostr NIP-44):", waHash:"Proof Hash:",
     secTitle:"4. Security-by-Design & BIP-84 Vault",
     secText:"Test an attack: the shop's NWC key blocks <code>pay_invoice</code> at the protocol layer.",
     btnAttack:"🛡️ pay_invoice Attack → RESTRICTED",
@@ -365,7 +483,9 @@ async function sha256Hex(message) {
   return Array.from(new Uint8Array(h)).map(b => b.toString(16).padStart(2,'0')).join('');
 }
 
-function renderDeterministicQR(seedText) {
+function renderQRInto(containerId, seedText, pxSize) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
   // Live backend only: render a real, scannable ISO/IEC 18004 QR code for
   // the real BOLT11 invoice (uppercase Bech32, QR alphanumeric mode).
   // Static fallback keeps the deterministic pseudo-matrix below, so a
@@ -375,15 +495,11 @@ function renderDeterministicQR(seedText) {
       const qr = qrcode(0, 'L');
       qr.addData(seedText.toUpperCase());
       qr.make();
-      document.getElementById('qr-container').innerHTML = qr.createSvgTag({
-        cellSize: 3,
-        margin: 0,
-        scalable: true
-      });
-      const svg = document.querySelector('#qr-container svg');
+      el.innerHTML = qr.createSvgTag({ cellSize: 3, margin: 0, scalable: true });
+      const svg = el.querySelector('svg');
       if (svg) {
-        svg.setAttribute('width', '147');
-        svg.setAttribute('height', '147');
+        svg.setAttribute('width', String(pxSize));
+        svg.setAttribute('height', String(pxSize));
       }
       return;
     } catch (_) { /* fall through to deterministic SVG */ }
@@ -411,8 +527,12 @@ function renderDeterministicQR(seedText) {
     else dark = (((hash >>> ((r*size+c)%28)) ^ (r*31+c*17)) & 1) === 1;
     if (dark) cells += `<rect x="${c*7}" y="${r*7}" width="7" height="7" fill="#000"/>`;
   }
-  document.getElementById('qr-container').innerHTML =
-    `<svg width="147" height="147" viewBox="0 0 147 147" xmlns="http://www.w3.org/2000/svg">${cells}</svg>`;
+  el.innerHTML =
+    `<svg width="${pxSize}" height="${pxSize}" viewBox="0 0 147 147" xmlns="http://www.w3.org/2000/svg">${cells}</svg>`;
+}
+
+function renderDeterministicQR(seedText) {
+  renderQRInto('qr-container', seedText, 147);
 }
 
 function updateModeBadge() {
@@ -449,7 +569,15 @@ function setLang(lang) {
   document.getElementById('th-hash').textContent = t.thHash;
   document.getElementById('btn-toggle-relay').textContent = t.btnRelay;
   document.getElementById('lbl-qr-title').textContent = t.qrTitle;
-  document.getElementById('btn-settle').textContent = t.btnSettle;
+  updateSettleButton();
+  document.getElementById('webln-btn').textContent = t.btnWebLN;
+  document.getElementById('btn-copy-invoice').textContent = t.btnCopyInvoice;
+  document.getElementById('btn-customer-qr').textContent = t.btnShowCustomer;
+  document.getElementById('modal-subtitle').textContent = t.modalSubtitle;
+  document.getElementById('modal-copy-btn').textContent = t.btnCopyInvoice;
+  document.getElementById('modal-close-btn').textContent = t.btnClose;
+  document.getElementById('btn-theme').textContent = currentTheme === 'light' ? t.btnThemeNight : t.btnThemeDay;
+  if (pollTimer) document.getElementById('poll-hint').textContent = t.autoPollNote;
   document.getElementById('btn-whatsapp').textContent = t.btnWhatsApp;
   document.getElementById('lbl-sec-title').textContent = t.secTitle;
   document.getElementById('lbl-sec-text').innerHTML = t.secText;
@@ -474,6 +602,7 @@ function setLang(lang) {
       `${currentInvoice.backendMode ? '[FASTAPI] ' : '[STATIC] '}${currentInvoice.bolt11}\n${t.paymentHashLabel}${currentInvoice.paymentHash}`;
     document.getElementById('qr-caption').textContent =
       `${currentInvoice.backendMode ? '' : t.qrStaticPrefix}${currentInvoice.customer} • ${currentInvoice.paidXof.toLocaleString('fr-FR')} FCFA (${currentInvoice.paidSats.toLocaleString()} Sats)`;
+    syncCustomerModal();
   }
   // Re-render the ledger so item names follow the new language.
   renderLedger();
@@ -501,6 +630,14 @@ function startVoiceDictation() {
   rec.start();
 }
 
+// Settle button label follows the wallet mode: in live NWC mode it really
+// checks the Hub (lookup_invoice), so it says "Check Payment"; in demo
+// mode it simulates the tap, so it keeps "Simulate Tap".
+function updateSettleButton() {
+  document.getElementById('btn-settle').textContent =
+    nwcMode === 'live' ? T('btnSettleLive') : T('btnSettle');
+}
+
 async function detectBackend() {
   try {
     const r = await fetch('/api/state', {method:'GET'});
@@ -508,7 +645,9 @@ async function detectBackend() {
       backendMode = true;
       const body = await r.json();
       balanceSats = body.balance_sats;
+      nwcMode = body.nwc_mode || 'demo';
       updateModeBadge();
+      updateSettleButton();
       if (body.bdk_treasury && body.bdk_treasury.vault_destination) {
         document.getElementById('val-bdk-addr').textContent = body.bdk_treasury.vault_destination;
       }
@@ -517,6 +656,62 @@ async function detectBackend() {
   } catch (_) {
     backendMode = false;
   }
+}
+
+function stopLivePoll() {
+  if (pollTimer) {
+    clearInterval(pollTimer);
+    pollTimer = null;
+  }
+  pollCount = 0;
+  const hint = document.getElementById('poll-hint');
+  if (hint) hint.textContent = '';
+}
+
+function startLivePoll(paymentHash) {
+  stopLivePoll();
+  if (!backendMode || nwcMode !== 'live') return;
+  const hint = document.getElementById('poll-hint');
+  if (hint) hint.textContent = T('autoPollNote');
+  pollTimer = setInterval(async () => {
+    if (!currentInvoice || currentInvoice.settled || currentInvoice.paymentHash !== paymentHash) {
+      stopLivePoll();
+      return;
+    }
+    pollCount += 1;
+    if (pollCount > 24) { // 2 minutes max
+      stopLivePoll();
+      return;
+    }
+    try {
+      const r = await fetch('/api/settle', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({payment_hash: paymentHash})
+      });
+      if (r.ok) {
+        const body = await r.json();
+        applyBackendSettlement(body.settlement);
+        stopLivePoll();
+      }
+    } catch (_) { /* stay quiet during background poll */ }
+  }, 5000);
+}
+
+// Shared success path for a real backend settlement (manual Check Payment,
+// WebLN, and the live auto-poll all land here): mark paid, sync the real
+// balance, show the SHA-256 proof, and refresh the customer modal.
+function applyBackendSettlement(s) {
+  if (!currentInvoice) return;
+  currentInvoice.settled = true;
+  balanceSats = s.new_balance_sats;
+  updateTopKPIs();
+  document.getElementById('invoice-status-badge').textContent = T('badgePaid');
+  document.getElementById('invoice-status-badge').style.color = "#34d399";
+  currentInvoice.settlement = {preimage: s.preimage, verified_sha256: s.verified_sha256, new_balance_sats: s.new_balance_sats};
+  renderSettlementBanner();
+  syncCustomerModal();
+  document.getElementById('audit-log-box').textContent =
+    `[${new Date().toISOString()}] ${T('auditSettled')} +${currentInvoice.paidSats} sats | hash=${currentInvoice.paymentHash.slice(0,16)}...`;
 }
 
 // Duplicate-sale guard: preset buttons call processSale() themselves, so a
@@ -533,16 +728,24 @@ async function processSale() {
   if (saleInFlight) return;
   if (text === lastSaleText) return;
   saleInFlight = true;
+  const btn = document.getElementById('btn-generate');
+  const errBox = document.getElementById('checkout-error');
+  if (errBox) errBox.style.display = 'none';
+  btn.disabled = true;
+  btn.textContent = T('btnLoading');
   try {
-    await processSaleInner();
-    lastSaleText = text;
+    const ok = await processSaleInner();
+    if (ok) lastSaleText = text;
   } finally {
     saleInFlight = false;
+    btn.disabled = false;
+    btn.textContent = T('btnGenerate');
   }
 }
 
 async function processSaleInner() {
   const text = document.getElementById('pos-input').value.trim();
+  const errBox = document.getElementById('checkout-error');
 
   if (backendMode) {
     try {
@@ -579,22 +782,28 @@ async function processSaleInner() {
           hash: inv.payment_hash.slice(0,24), cipher: ev.content, id: ev.id
         });
         renderLedger();
-        return;
+        startLivePoll(inv.payment_hash);
+        return true;
       }
       // Backend answered with an error (e.g. the real wallet is
       // unreachable in live NWC mode): do NOT fall through to a fabricated
       // static demo invoice. Show the failure and stop.
       let detail = '';
-      try { detail = (await r.json()).detail || ''; } catch (_) { /* ignore */ }
-      document.getElementById('audit-log-box').textContent =
-        `[${new Date().toISOString()}] CHECKOUT FAILED (${r.status}) ${detail}`;
-      return;
+      try {
+        const body = await r.json();
+        detail = typeof body.detail === 'object' ? JSON.stringify(body.detail) : (body.detail || '');
+      } catch (_) { /* ignore */ }
+      const msg = `CHECKOUT FAILED (${r.status}) ${detail}`;
+      document.getElementById('audit-log-box').textContent = `[${new Date().toISOString()}] ${msg}`;
+      if (errBox) { errBox.style.display = 'block'; errBox.textContent = msg; }
+      return false;
     } catch (_) {
       // Backend unreachable: same rule, never fabricate a static invoice
       // when a backend was expected.
-      document.getElementById('audit-log-box').textContent =
-        `[${new Date().toISOString()}] CHECKOUT FAILED: backend unreachable`;
-      return;
+      const msg = 'CHECKOUT FAILED: backend unreachable';
+      document.getElementById('audit-log-box').textContent = `[${new Date().toISOString()}] ${msg}`;
+      if (errBox) { errBox.style.display = 'block'; errBox.textContent = msg; }
+      return false;
     }
   }
 
@@ -637,6 +846,7 @@ async function processSaleInner() {
     paidXof, debtXof, hash: paymentHash.slice(0,24), cipher: nip44Cipher, id: null
   });
   renderLedger();
+  return true;
 }
 
 function updateUIFromInvoice(p, inv) {
@@ -644,6 +854,10 @@ function updateUIFromInvoice(p, inv) {
   document.getElementById('out-paid-sats').textContent = `${p.upfront_sats.toLocaleString()} Sats`;
   document.getElementById('out-debt-xof').textContent = `${p.credit_owed_xof.toLocaleString('fr-FR')} FCFA`;
   document.getElementById('out-debt-sats').textContent = `${p.credit_owed_sats.toLocaleString()} Sats`;
+  const total = Math.max(1, (p.paid_upfront_xof || 0) + (p.credit_owed_xof || 0));
+  const paidPct = Math.round(((p.paid_upfront_xof || 0) / total) * 100);
+  document.getElementById('split-bar-paid').style.width = `${paidPct}%`;
+  document.getElementById('split-bar-debt').style.width = `${100 - paidPct}%`;
   document.getElementById('qr-caption').textContent =
     `${backendMode ? '' : T('qrStaticPrefix')}${p.customer_name} • ${p.paid_upfront_xof.toLocaleString('fr-FR')} FCFA (${p.upfront_sats.toLocaleString()} Sats)`;
   document.getElementById('bolt11-box').textContent =
@@ -653,6 +867,7 @@ function updateUIFromInvoice(p, inv) {
   document.getElementById('settlement-banner').style.display = "none";
   renderDeterministicQR(inv.invoice);
   tryWebLNPayment(inv.invoice);
+  syncCustomerModal();
 }
 
 // WebLN (v3.7): one-click browser-wallet payment (e.g. Alby). No wallet
@@ -681,19 +896,60 @@ async function tryWebLNPayment(invoice) {
       });
       if (!r.ok) return;
       const body = await r.json();
-      const s = body.settlement;
-      currentInvoice.settled = true;
-      balanceSats = s.new_balance_sats;
-      updateTopKPIs();
-      document.getElementById('invoice-status-badge').textContent = T('badgePaid');
-      document.getElementById('invoice-status-badge').style.color = "#34d399";
-      currentInvoice.settlement = {preimage: s.preimage, verified_sha256: s.verified_sha256, new_balance_sats: s.new_balance_sats};
-      renderSettlementBanner();
-      document.getElementById('audit-log-box').textContent =
-        `[${new Date().toISOString()}] ${T('auditSettled')} +${currentInvoice.paidSats} sats | hash=${currentInvoice.paymentHash.slice(0,16)}...`;
+      applyBackendSettlement(body.settlement);
+      stopLivePoll();
     } catch (_) { /* static mode / backend unreachable: settle stays silent */ }
   };
 }
+
+async function copyCurrentInvoice() {
+  if (!currentInvoice || !currentInvoice.bolt11) return;
+  try {
+    await navigator.clipboard.writeText(currentInvoice.bolt11);
+  } catch (_) {
+    const ta = document.createElement('textarea');
+    ta.value = currentInvoice.bolt11;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+  }
+  ['btn-copy-invoice', 'modal-copy-btn'].forEach(id => {
+    const b = document.getElementById(id);
+    if (!b) return;
+    b.textContent = T('btnCopied');
+    setTimeout(() => { b.textContent = T('btnCopyInvoice'); }, 1800);
+  });
+}
+
+function syncCustomerModal() {
+  if (!currentInvoice) return;
+  document.getElementById('modal-amount-xof').textContent = `${currentInvoice.paidXof.toLocaleString('fr-FR')} FCFA`;
+  document.getElementById('modal-amount-sats').textContent = `⚡ ${currentInvoice.paidSats.toLocaleString()} Sats • ${currentInvoice.customer}`;
+  const badge = document.getElementById('modal-status-badge');
+  if (currentInvoice.settled) {
+    badge.className = 'status-pill pill-paid';
+    badge.textContent = currentInvoice.backendMode ? T('badgePaid') : T('badgePaidStatic');
+  } else {
+    badge.className = 'status-pill pill-credit';
+    badge.textContent = T('badgeWaiting');
+  }
+}
+
+function openCustomerModal() {
+  if (!currentInvoice) return;
+  syncCustomerModal();
+  renderQRInto('modal-qr-container', currentInvoice.bolt11, 224);
+  document.getElementById('customer-qr-modal').style.display = 'flex';
+}
+
+function closeCustomerModal() {
+  document.getElementById('customer-qr-modal').style.display = 'none';
+}
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeCustomerModal();
+});
 
 // Settlement banner (v3.7 rev3): the banner is rendered once at settle time,
 // so store the settlement data on the invoice and re-render it from setLang()
@@ -725,7 +981,18 @@ function renderSettlementBanner() {
 
 async function settleCurrentInvoice() {
   if (!currentInvoice || currentInvoice.settled) return;
+  const btn = document.getElementById('btn-settle');
+  btn.disabled = true;
+  btn.textContent = T('btnChecking');
+  try {
+    await settleCurrentInvoiceInner();
+  } finally {
+    btn.disabled = false;
+    updateSettleButton();
+  }
+}
 
+async function settleCurrentInvoiceInner() {
   if (currentInvoice.backendMode) {
     try {
       const r = await fetch('/api/settle', {
@@ -734,16 +1001,8 @@ async function settleCurrentInvoice() {
       });
       if (r.ok) {
         const body = await r.json();
-        const s = body.settlement;
-        currentInvoice.settled = true;
-        balanceSats = s.new_balance_sats;
-        updateTopKPIs();
-        document.getElementById('invoice-status-badge').textContent = T('badgePaid');
-        document.getElementById('invoice-status-badge').style.color = "#34d399";
-        currentInvoice.settlement = {preimage: s.preimage, verified_sha256: s.verified_sha256, new_balance_sats: s.new_balance_sats};
-        renderSettlementBanner();
-        document.getElementById('audit-log-box').textContent =
-          `[${new Date().toISOString()}] ${T('auditSettled')} +${currentInvoice.paidSats} sats | hash=${currentInvoice.paymentHash.slice(0,16)}...`;
+        applyBackendSettlement(body.settlement);
+        stopLivePoll();
         return;
       }
       // Backend answered but the invoice is NOT settled (e.g. the real
@@ -789,6 +1048,7 @@ function renderSecurityAlert() {
   if (!lastSecurityAlert) return;
   const alertBox = document.getElementById('security-alert');
   alertBox.style.display = "block";
+  alertBox.className = "alert-banner alert-danger";
   if (lastSecurityAlert.mode === 'backend') {
     alertBox.innerHTML =
       `<strong>${T('firewallBackend')}</strong><br/>` +
@@ -945,7 +1205,7 @@ async function auditNostrRow(idx) {
   rawBox.textContent = JSON.stringify({
     alias: entry.alias,
     nip44_ciphertext: entry.cipher,
-    note: "Run ./run.sh or open the live Render URL for server-side Schnorr & NIP-44 decryption"
+    note: "Run ./run.sh or open the live site at https://carnetsats.duckdns.org for server-side Schnorr & NIP-44 decryption"
   }, null, 2);
 }
 
@@ -987,13 +1247,14 @@ async function repayTabRow(idx) {
 
 function shareWhatsAppReceipt() {
   if (!currentInvoice) return;
+  const loc = currentLang === 'en' ? 'en-US' : 'fr-FR';
   const msg =
-    `⚡ *Reçu CarnetSats — Boutique Touba (Dakar)*\n` +
-    `• Client: ${currentInvoice.customer} (${currentInvoice.alias})\n` +
-    `• Articles: ${translateItems(currentInvoice.items)}\n` +
-    `• Payé Lightning: ${currentInvoice.paidXof.toLocaleString('fr-FR')} FCFA (${currentInvoice.paidSats.toLocaleString()} Sats)\n` +
-    `• Reste Carnet Nostr (NIP-44): ${currentInvoice.debtXof.toLocaleString('fr-FR')} FCFA\n` +
-    `• Preuve Hash: ${currentInvoice.paymentHash.slice(0, 20)}...`;
+    `${T('waTitle')}\n` +
+    `• ${T('waCustomer')} ${currentInvoice.customer} (${currentInvoice.alias})\n` +
+    `• ${T('waItems')} ${translateItems(currentInvoice.items)}\n` +
+    `• ${T('waPaid')} ${currentInvoice.paidXof.toLocaleString(loc)} FCFA (${currentInvoice.paidSats.toLocaleString()} Sats)\n` +
+    `• ${T('waDebt')} ${currentInvoice.debtXof.toLocaleString(loc)} FCFA\n` +
+    `• ${T('waHash')} ${currentInvoice.paymentHash.slice(0, 20)}...`;
   window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
 }
 
@@ -1016,6 +1277,10 @@ function renderLedger() {
 }
 
 window.onload = async () => {
+  try {
+    const saved = localStorage.getItem('carnetsats_theme');
+    if (saved === 'light') applyTheme('light');
+  } catch (_) {}
   await detectBackend();
   processSale();
 };

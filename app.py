@@ -43,7 +43,7 @@ _load_dotenv()
 
 app = FastAPI(
     title="CarnetSats API — Dakar Bitcoin Hack by BTrust",
-    version="3.8.0",
+    version="3.8.1",
     description="Voice/Receipt POS + Least-Privilege NWC + Real NIP-44 Nostr Credit Ledger + Real BIP-84 Cold Vault",
 )
 

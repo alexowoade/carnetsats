@@ -785,7 +785,7 @@ def test_21a_frontend_serves_new_buttons():
     assert "btnRepay" in html
     # v3.8: version badge, duplicate-sale guard, singular note label.
     assert 'id="version-badge"' in html
-    assert "v3.8.0" in html
+    assert "v3.8.1" in html
     assert "processSaleInner" in html
     assert "saleInFlight" in html
     assert "lastSaleText" in html

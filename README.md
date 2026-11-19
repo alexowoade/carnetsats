@@ -9,7 +9,7 @@ the unpaid credit goes on a Nostr credit tab encrypted with real NIP-44 v2.
 Surplus hot-wallet funds are swept to a BIP-84 watch-only cold vault by
 policy. No customer PII ever reaches a log.
 
-**233 automated tests (+ 1 live Nostr relay round-trip test + 1 live NWC wallet test) — verifiable in the terminal via `./run.sh`.**
+**235 automated tests (+ 1 live Nostr relay round-trip test + 1 live NWC wallet test) — verifiable in the terminal via `./run.sh`.**
 
 ## Honest claims (from `carnetsats_engine.py`, verbatim)
 
@@ -37,16 +37,17 @@ merchant key are all derived from fixed public demo strings. Swap them
 for real keys in production. The vpub is watch-only, no funds can be
 spent from it.
 
-## Live Hosted MVP (Render — Full FastAPI Backend)
+## Live Hosted MVP (AWS EC2 — always on)
 
-- **Live App (`MODE: LIVE FASTAPI`):** https://carnetsats.onrender.com
-- Python 3.12 (`PYTHON_VERSION=3.12.0` on Render; coincurve does not build on Python 3.13). Free tier sleeps after 15 minutes of inactivity, so the first visit can take about a minute to wake up.
+- **Live App (`MODE: LIVE FASTAPI`):** https://carnetsats.duckdns.org
+- Always on: AWS EC2 (t3.micro, Ubuntu 24.04) + Caddy HTTPS + live Mutinynet Alby Hub + credit records published to wss://nos.lol.
+- Python 3.12 (`PYTHON_VERSION=3.12.0`; coincurve does not build on Python 3.13).
 
 ## Quickstart
 
 ```bash
 ./run.sh
-# runs 233 tests, then serves the live MVP at http://localhost:8000
+# runs 235 tests, then serves the live MVP at http://localhost:8000
 ```
 
 Or with Docker:
@@ -107,7 +108,7 @@ the displayed balance. Production wires a BDK PSBT builder.
 is labelled `[STATIC]`, the QR is a deterministic pseudo-matrix (not a
 real QR code) captioned `[STATIC DEMO QR - run ./run.sh for real
 BOLT11]`, and the BOLT11 / NIP-44 data shown is a static demo envelope.
-With the live backend (`MODE: LIVE FASTAPI`, local or Render) the QR is a
+With the live backend (`MODE: LIVE FASTAPI`, local or the live EC2 host) the QR is a
 real scannable ISO/IEC 18004 QR code for the real BOLT11 invoice.
 Run `./run.sh` for the real backend.
 
@@ -116,7 +117,7 @@ Run `./run.sh` for the real backend.
 - `carnetsats_engine.py` — NIP-47, BIP-84, NIP-44 v2, Schnorr, parser, PII redactor
 - `nwc_client.py` — real NWC (NIP-47) transport to a live wallet (rev4)
 - `app.py` — FastAPI backend
-- `test_carnetsats.py` — 233 deterministic tests
+- `test_carnetsats.py` — 235 deterministic tests
 - `test_15_nostr_relay_roundtrip.py` — live relay round-trip (skipped offline)
 - `test_23_nwc_live.py` — live NWC wallet round-trip (skipped without CARNETSATS_NWC_URL)
 - `docs/index.html` — frontend (live backend or static fallback)
