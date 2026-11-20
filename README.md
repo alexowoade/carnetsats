@@ -4,12 +4,13 @@
 ![Version](https://img.shields.io/badge/version-v3.8.1-f7931a)
 ![Python](https://img.shields.io/badge/python-3.12-3776ab)
 ![Network](https://img.shields.io/badge/lightning-Mutinynet%20Signet-10b981)
-![Tests](https://img.shields.io/badge/pytest-235%20offline%20%2B%202%20live-10b981)
+![Tests](https://img.shields.io/badge/pytest-237%20offline%20%2B%202%20live-10b981)
 
 > **Dakar Bitcoin Hack by BTrust 2026** — A trilingual (**French / Wolof / English**) voice-and-text point-of-sale for West African neighborhood shops (*boutiques de quartier*). A clerk speaks or types a sale, the AI cashier parses it, a **receive-only Lightning invoice (NIP-47 NWC)** is issued for the upfront amount, and the unpaid balance is recorded on a **NIP-44 v2 encrypted Nostr credit tab (`Kind 30078`)**. Surplus hot-wallet funds are flagged for cold-storage sweep by a watch-only **BIP-84** policy—so shopkeepers digitize paper credit notebooks (*carnets de dettes*) without exposing spending keys at the counter.
 
 🔗 **Live Hosted MVP (AWS EC2 + Caddy HTTPS):** https://carnetsats.duckdns.org  
-🛡️ **STRIDE Threat Model:** [SECURITY.md](SECURITY.md)
+🛡️ **STRIDE Threat Model:** [SECURITY.md](SECURITY.md)  
+🎬 **3-Minute Demo Video:** https://youtu.be/bk-5O6XJb5w
 
 ---
 
@@ -18,7 +19,7 @@
 - **Real Lightning Settlement Verified (2026-11-19):** Live Mutinynet Alby Hub issued a `lntbs...` BOLT11 invoice via receive-only NIP-47 NWC (`#e`-tag matched in `v3.8.1`); the Mutinynet faucet paid **263 sats** and CarnetSats verified `SHA256(preimage) == payment_hash`.
 - **Real Public Nostr Ledger:** Every checkout and tab repayment publishes a BIP-340 Schnorr-signed, NIP-44 v2 encrypted `Kind 30078` event to `wss://nos.lol` (inspectable via `GET /api/nostr-events`).
 - **Zero-Trust Counter Hardware:** The live NWC grant is strictly **receive-only** (`get_info`, `get_balance`, `make_invoice`, `lookup_invoice`, `list_transactions`). `pay_invoice` is excluded in Alby Hub *and* blocked in code (`RESTRICTED`). **Only the shop owner moves funds inside Alby Hub—never from the counter app.**
-- **Automated Verification:** **235 deterministic offline tests** + **2 gated live tests** (`235 passed, 2 skipped` offline; `236 passed, 1 skipped` on EC2 with `CARNETSATS_NWC_URL` set).
+- **Automated Verification:** **237 deterministic offline tests** + **2 gated live tests** (`SKIP_RELAY_TESTS=1 pytest`: 237 passed, 2 skipped offline; 238 passed, 1 skipped on the PC with `CARNETSATS_NWC_URL` exported in the shell).
 
 ---
 
@@ -99,9 +100,9 @@ Full STRIDE analysis across NWC, Nostr, and BIP-84 lives in [SECURITY.md](SECURI
 
 ---
 
-## Automated Verification Suite (235 Offline + 2 Live Tests)
+## Automated Verification Suite (237 Offline + 2 Live Tests)
 
-Running `pytest` offline executes **235 passed, 2 skipped** (live relay and live NWC tests gated). On EC2 with `CARNETSATS_NWC_URL` configured, the suite runs **236 passed, 1 skipped**.
+Running `SKIP_RELAY_TESTS=1 pytest` offline executes **237 passed, 2 skipped** (`test_15_nostr_relay_roundtrip.py` and `test_23_nwc_live.py` gated). With `SKIP_RELAY_TESTS=1` and `CARNETSATS_NWC_URL` exported in the shell (live wallet mode), `pytest` runs **238 passed, 1 skipped** (`./run.sh` targets `test_carnetsats.py` and `test_15_nostr_relay_roundtrip.py`, outputting **237 passed, 1 skipped**).
 
 | Test Group | Count | What It Verifies |
 | --- | --- | --- |
@@ -118,7 +119,7 @@ Running `pytest` offline executes **235 passed, 2 skipped** (live relay and live
 
 ```bash
 # 1-command setup: creates .venv (Python 3.12), generates fresh .env merchant key,
-# runs the 235 deterministic tests, and serves the live MVP at http://localhost:8000
+# runs the 237 deterministic tests, and serves the live MVP at http://localhost:8000
 ./run.sh
 
 ```
@@ -158,7 +159,7 @@ docker compose up --build
 * `nwc_client.py` — Subprocess-isolated live NIP-47 NWC client with `#e`-tag reply matching
 * `app.py` — FastAPI REST server & web UI host
 * `docs/index.html` — Single-file trilingual POS UI (Daylight mode, Customer QR modal, WebLN, WhatsApp receipts)
-* `test_carnetsats.py` — 235 deterministic unit, fuzz, and E2E tests
+* `test_carnetsats.py` — 237 deterministic unit, fuzz, and E2E tests
 * `test_15_nostr_relay_roundtrip.py` & `test_23_nwc_live.py` — Gated live relay and live NWC round-trip tests
 * `SECURITY.md` — STRIDE threat model & honest boundary disclosures
 * `run.sh`, `Dockerfile`, `docker-compose.yml`, `.env.example`, `requirements.txt`, `runtime.txt`, `.python-version`, `.github/workflows/test.yml`
