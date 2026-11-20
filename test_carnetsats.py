@@ -874,6 +874,10 @@ class _FakeWallet:
         self.preimages = {}
         self.balance_msat = 250_000_000  # 250,000 sats
         self.last_payment_hash = None
+        # When True, lookup_invoice always answers unsettled even for paid
+        # invoices (models the Alby Hub bug proven 2026-11-20), while
+        # list_transactions still reports them settled.
+        self.lookup_broken = False
 
     def request(self, method, params=None):
         from carnetsats_engine import _make_bolt11_signet
@@ -894,11 +898,20 @@ class _FakeWallet:
             return {"invoice": invoice, "payment_hash": ph, "amount": amount_msat}
         if method == "lookup_invoice":
             ph = str(params.get("payment_hash", ""))
-            settled = ph in self.paid
+            settled = ph in self.paid and not self.lookup_broken
             return {"invoice": "", "payment_hash": ph,
                     "preimage": self.preimages.get(ph) if settled else None,
                     "amount": 0, "settled": settled,
                     "settled_at": 1234567890 if settled else None}
+        if method == "list_transactions":
+            txs = []
+            for ph in self.paid:
+                txs.append({"type": "incoming", "state": "settled",
+                            "payment_hash": ph,
+                            "preimage": self.preimages.get(ph),
+                            "amount": 10_000_000,
+                            "settled_at": 1234567890})
+            return {"transactions": txs}
         raise AssertionError(f"fake wallet got unexpected method {method}")
 
     def mark_paid(self, payment_hash):
@@ -1097,6 +1110,44 @@ def test_22p_nwc_worker_invalid_relay_fails_fast():
     bad = NWCClient("wss://127.0.0.1:9", "ab" * 32, "cd" * 32, timeout=3.0)
     with pytest.raises(NWCError):
         bad.request("get_info", {})
+
+
+def test_22q_nwc_live_settle_falls_back_to_list_transactions(tmp_path, monkeypatch):
+    # Models the Alby Hub bug proven 2026-11-20: lookup_invoice answers
+    # unsettled for a paid invoice, but list_transactions reports the
+    # same payment hash as settled with the correct preimage. Settle
+    # must succeed via the fallback, with the preimage verified.
+    engine = _live_engine_with_fake_wallet(tmp_path, monkeypatch)
+    wallet = _FakeWallet()
+    wallet.lookup_broken = True
+    monkeypatch.setattr(engine._nwc_client, "request", wallet.request)
+    resp = engine.execute_nip47_request(
+        "make_invoice", {"amount": 10_000_000, "description": "t"}, role="clerk_ai")
+    ph = resp["result"]["payment_hash"]
+    wallet.mark_paid(ph)
+    # lookup_invoice lies (settled False) even though it is paid.
+    look = engine.execute_nip47_request("lookup_invoice", {"payment_hash": ph}, role="clerk_ai")
+    assert look["result"]["settled"] is False
+    out = engine.settle_incoming_invoice(ph)
+    assert out["settled"] is True
+    assert out["verified_sha256"] is True
+    assert out["new_balance_sats"] == 250_000
+
+
+def test_22r_nwc_live_settle_fallback_rejects_wrong_preimage(tmp_path, monkeypatch):
+    # The fallback must never mark settled on a preimage that does not
+    # hash to the payment hash, even if list_transactions claims settled.
+    engine = _live_engine_with_fake_wallet(tmp_path, monkeypatch)
+    wallet = _FakeWallet()
+    wallet.lookup_broken = True
+    monkeypatch.setattr(engine._nwc_client, "request", wallet.request)
+    resp = engine.execute_nip47_request(
+        "make_invoice", {"amount": 10_000_000, "description": "t"}, role="clerk_ai")
+    ph = resp["result"]["payment_hash"]
+    wallet.mark_paid(ph)
+    wallet.preimages[ph] = "00" * 32  # corrupt the preimage
+    with pytest.raises(ValueError, match="not settled yet"):
+        engine.settle_incoming_invoice(ph)
 
 
 def test_groq_parser_uses_live_json_when_key_set(monkeypatch):

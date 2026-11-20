@@ -579,6 +579,11 @@ class NWCLightningEngine:
                                    "amount": res.get("amount") or (inv["amount"] if inv else 0),
                                    "settled": settled,
                                    "settled_at": res.get("settled_at")}}
+            if method == "list_transactions":
+                res = self._nwc_client.request("list_transactions", params)
+                txs = res.get("transactions", []) if isinstance(res, dict) else (res if isinstance(res, list) else [])
+                return {"kind": 23195, "result_type": "list_transactions", "error": None,
+                        "result": {"transactions": txs}}
             if method == "pay_invoice":
                 invoice = str(params.get("invoice", ""))
                 if not invoice:
@@ -627,7 +632,7 @@ class NWCLightningEngine:
                     "error": {"code": "NWC_CONFIG_ERROR",
                               "message": "CARNETSATS_NWC_URL is set but invalid; fix .env, do not trade in demo mode."},
                     "result": None}
-        if self.nwc_mode == "live" and method in {"get_info", "get_balance", "make_invoice", "lookup_invoice", "pay_invoice"}:
+        if self.nwc_mode == "live" and method in {"get_info", "get_balance", "make_invoice", "lookup_invoice", "pay_invoice", "list_transactions"}:
             return self._execute_nwc_live(method, params, role)
 
         if method == "get_info":
@@ -727,6 +732,39 @@ class NWCLightningEngine:
             if resp.get("error"):
                 raise ValueError(f"Wallet lookup failed: {resp['error'].get('message', resp['error'].get('code'))}")
             res = resp["result"] or {}
+            if not res.get("settled"):
+                # Fallback (v3.8.1 rev5): Alby Hub's lookup_invoice can
+                # report a paid invoice as unsettled while its own
+                # transaction list says settled (proven 2026-11-20 for
+                # two invoices: the Hub DB has state SETTLED with the
+                # correct preimage, yet lookup answers settled:false).
+                # Check the transaction list for this exact payment hash,
+                # incoming, settled, and still verify the preimage
+                # cryptographically. Never mark settled without a
+                # matching preimage.
+                fb = self.execute_nip47_request(
+                    "list_transactions", {"limit": 50}, role="clerk_ai")
+                if not fb.get("error"):
+                    txs = (fb.get("result") or {}).get("transactions", [])
+                    for tx in txs:
+                        if not isinstance(tx, dict):
+                            continue
+                        if str(tx.get("payment_hash", "")) != payment_hash:
+                            continue
+                        if str(tx.get("type", "")).lower() != "incoming":
+                            continue
+                        if str(tx.get("state", "")).lower() != "settled":
+                            continue
+                        fb_preimage = tx.get("preimage")
+                        if not fb_preimage:
+                            continue
+                        fb_hash = hashlib.sha256(bytes.fromhex(str(fb_preimage))).hexdigest()
+                        if fb_hash != payment_hash:
+                            continue
+                        res = {"settled": True, "preimage": str(fb_preimage),
+                               "settled_at": tx.get("settled_at")}
+                        self._log(f"SETTLED via list_transactions fallback payment_hash={payment_hash[:16]}...")
+                        break
             if not res.get("settled"):
                 raise ValueError("Invoice not settled yet — customer has not paid")
             preimage = res.get("preimage")
